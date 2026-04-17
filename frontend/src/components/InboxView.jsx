@@ -263,6 +263,8 @@ export default function InboxView({ onInboxChange }) {
   const [capture, setCapture] = useState('');
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const [captureError, setCaptureError] = useState('');
+  const [capturing, setCapturing] = useState(false);
   const inputRef = useRef(null);
 
   const fetchItems = useCallback(async () => {
@@ -283,18 +285,29 @@ export default function InboxView({ onInboxChange }) {
     e.preventDefault();
     const text = capture.trim();
     if (!text) return;
+    setCapturing(true);
+    setCaptureError('');
     try {
       const res = await fetch('/api/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: text }),
       });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `Server error ${res.status}`);
+      }
       const newItem = await res.json();
       setItems((prev) => [newItem, ...prev]);
       setCapture('');
       onInboxChange?.();
       inputRef.current?.focus();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      setCaptureError(err.message || 'Failed to capture. Try again.');
+    } finally {
+      setCapturing(false);
+    }
   };
 
   const handleProcessDone = () => {
@@ -317,14 +330,17 @@ export default function InboxView({ onInboxChange }) {
           ref={inputRef}
           className="capture-input"
           value={capture}
-          onChange={(e) => setCapture(e.target.value)}
-          placeholder="Capture anything — tasks, ideas, worries, commitments…"
+          onChange={(e) => { setCapture(e.target.value); setCaptureError(''); }}
+          placeholder="Capture anything — tasks, ideas, worries…"
           autoFocus
         />
-        <button type="submit" className="capture-submit" disabled={!capture.trim()}>
-          Capture
+        <button type="submit" className="capture-submit" disabled={!capture.trim() || capturing}>
+          {capturing ? '…' : 'Capture'}
         </button>
       </form>
+      {captureError && (
+        <div className="capture-error">{captureError}</div>
+      )}
 
       <div className="inbox-meta">
         {items.length > 0

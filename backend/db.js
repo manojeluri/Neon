@@ -83,10 +83,18 @@ const ready = (async () => {
 
 // ─── Query helpers ────────────────────────────────────────────────────────────
 
+// Convert libsql Row objects to plain JS objects for safe JSON serialization
+const toPlain = (row) => {
+  if (!row) return null;
+  const obj = {};
+  for (const key of Object.keys(row)) obj[key] = row[key];
+  return obj;
+};
+
 async function all(sql, args = []) {
   await ready;
   const r = await client.execute({ sql, args });
-  return r.rows;
+  return r.rows.map(toPlain);
 }
 
 async function first(sql, args = []) {
