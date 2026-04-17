@@ -1757,6 +1757,13 @@ details[open] .completed-summary::before { content: '▼  '; }
 }
 .two-min-rule button:hover { background: rgba(255,110,0,0.35); }
 
+.process-save-error {
+  font-size: 0.75rem; color: #ff6060;
+  background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.3);
+  border-radius: var(--r-xs); padding: 6px 10px;
+}
+.process-hint { font-size: 0.72rem; color: var(--t3); }
+
 /* Inbox zero */
 .inbox-zero {
   display: flex; flex-direction: column; align-items: center;

@@ -16,6 +16,7 @@ function ProcessPanel({ item, projects, onDone }) {
   const [projectPurpose, setProjectPurpose] = useState('');
   const [projectOutcome, setProjectOutcome] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [showTwoMin, setShowTwoMin] = useState(false);
 
   const est = parseInt(estMinutes, 10);
@@ -34,20 +35,23 @@ function ProcessPanel({ item, projects, onDone }) {
   const handleFinish = async (overrideRoute) => {
     const r = overrideRoute || route;
     setSaving(true);
+    setSaveError('');
     try {
       if (r === 'trash') {
         await fetch(`/api/inbox/${item.id}`, { method: 'DELETE' });
         onDone();
         return;
       }
+
+      let res;
       if (r === 'someday') {
-        await fetch('/api/tasks', {
+        res = await fetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: title.trim(), list_type: 'someday', priority }),
         });
       } else if (r === 'project') {
-        await fetch('/api/projects', {
+        res = await fetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -57,7 +61,7 @@ function ProcessPanel({ item, projects, onDone }) {
           }),
         });
       } else if (r === 'task') {
-        await fetch('/api/tasks', {
+        res = await fetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -70,10 +74,17 @@ function ProcessPanel({ item, projects, onDone }) {
           }),
         });
       }
+
+      if (res && !res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `Server error ${res.status}`);
+      }
+
       await fetch(`/api/inbox/${item.id}`, { method: 'DELETE' });
       onDone();
     } catch (err) {
       console.error(err);
+      setSaveError(err.message || 'Something went wrong. Try again.');
       setSaving(false);
     }
   };
@@ -183,6 +194,8 @@ function ProcessPanel({ item, projects, onDone }) {
               </select>
             </div>
           )}
+          {saveError && <div className="process-save-error">{saveError}</div>}
+          <div className="process-hint">Task will appear in Tasks → Unscheduled</div>
           <div className="process-actions">
             <button className="process-btn process-btn--back" onClick={() => setStep('route')}>← Back</button>
             <button
@@ -218,6 +231,7 @@ function ProcessPanel({ item, projects, onDone }) {
             onChange={(e) => setProjectOutcome(e.target.value)}
             placeholder="What does done look like? (outcome)"
           />
+          {saveError && <div className="process-save-error">{saveError}</div>}
           <div className="process-actions">
             <button className="process-btn process-btn--back" onClick={() => setStep('route')}>← Back</button>
             <button
@@ -241,6 +255,7 @@ function ProcessPanel({ item, projects, onDone }) {
             placeholder="Title…"
             autoFocus
           />
+          {saveError && <div className="process-save-error">{saveError}</div>}
           <div className="process-actions">
             <button className="process-btn process-btn--back" onClick={() => setStep('actionable')}>← Back</button>
             <button
