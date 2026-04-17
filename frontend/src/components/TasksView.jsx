@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import TaskCard from './TaskCard.jsx';
@@ -41,7 +42,7 @@ export default function TasksView() {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const res = await fetch('/api/projects');
+      const res = await fetch(`${API}/api/projects`);
       setProjects(await res.json());
     } catch (err) { console.error(err); }
   }, []);
@@ -62,7 +63,7 @@ export default function TasksView() {
 
       const [tasksRes, nowRes] = await Promise.all([
         fetch(url),
-        fetch('/api/tasks/now'),
+        fetch(`${API}/api/tasks/now`),
       ]);
       const tasksData = await tasksRes.json();
       const nowData = await nowRes.json();
@@ -82,7 +83,7 @@ export default function TasksView() {
 
   const updateTask = async (id, fields) => {
     try {
-      const res = await fetch(`/api/tasks/${id}`, {
+      const res = await fetch(`${API}/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fields),
@@ -116,7 +117,7 @@ export default function TasksView() {
     const newCompleted = !task.completed;
     setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, completed: newCompleted ? 1 : 0 } : t));
     try {
-      await fetch(`/api/tasks/${task.id}`, {
+      await fetch(`${API}/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completed: newCompleted }),
@@ -131,7 +132,7 @@ export default function TasksView() {
       danger: true,
       onConfirm: async () => {
         setConfirm(null);
-        await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+        await fetch(`${API}/api/tasks/${id}`, { method: 'DELETE' });
         setTasks((prev) => prev.filter((t) => t.id !== id));
       },
     });
@@ -149,7 +150,7 @@ export default function TasksView() {
 
     const context = subtab === 'contexts' ? activeContext : fields.context;
 
-    const res = await fetch('/api/tasks', {
+    const res = await fetch(`${API}/api/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...fields, date, list_type, context }),

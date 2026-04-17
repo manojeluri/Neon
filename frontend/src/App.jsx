@@ -1,3 +1,4 @@
+import { API } from './api';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sun, CheckSquare, CalendarDays, BarChart2, Inbox, FolderKanban, Target, RefreshCw, Sparkles } from 'lucide-react';
 import Calendar from './components/Calendar.jsx';
@@ -30,7 +31,7 @@ export default function App() {
 
   const refreshInboxCount = useCallback(async () => {
     try {
-      const res = await fetch('/api/inbox/count');
+      const res = await fetch(`${API}/api/inbox/count`);
       const data = await res.json();
       setInboxCount(data.count || 0);
     } catch (err) { console.error(err); }

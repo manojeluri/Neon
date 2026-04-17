@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 
@@ -176,7 +177,7 @@ export default function DayPlanner({ selectedDate, onSelectDate }) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const tasksRes = await fetch(`/api/tasks?date=${date}`);
+      const tasksRes = await fetch(`${API}/api/tasks?date=${date}`);
       setTasks(await tasksRes.json());
     } catch (err) {
       console.error('DayPlanner fetch error:', err);
@@ -199,7 +200,7 @@ export default function DayPlanner({ selectedDate, onSelectDate }) {
     const newCompleted = !task.completed;
     setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, completed: newCompleted ? 1 : 0 } : t));
     try {
-      await fetch(`/api/tasks/${task.id}`, {
+      await fetch(`${API}/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completed: newCompleted }),
@@ -212,7 +213,7 @@ export default function DayPlanner({ selectedDate, onSelectDate }) {
 
   // Add task
   const handleAddTask = async (fields) => {
-    const res = await fetch('/api/tasks', {
+    const res = await fetch(`${API}/api/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
@@ -238,7 +239,7 @@ export default function DayPlanner({ selectedDate, onSelectDate }) {
 
   // Edit task save
   const handleEditTask = async (fields) => {
-    const res = await fetch(`/api/tasks/${editingTask.id}`, {
+    const res = await fetch(`${API}/api/tasks/${editingTask.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
@@ -270,7 +271,7 @@ export default function DayPlanner({ selectedDate, onSelectDate }) {
       onConfirm: async () => {
         setConfirm(null);
         try {
-          await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+          await fetch(`${API}/api/tasks/${taskId}`, { method: 'DELETE' });
           setTasks((prev) => prev.filter((t) => t.id !== taskId));
         } catch (err) {
           console.error('Failed to delete task:', err);

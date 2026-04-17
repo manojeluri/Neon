@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const AGENT_URL = 'http://localhost:5001';
@@ -95,7 +96,7 @@ export default function AIView() {
 
   const addToInbox = async (text, idx) => {
     try {
-      const res = await fetch('/api/inbox', {
+      const res = await fetch(`${API}/api/inbox`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: text }),

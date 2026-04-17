@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, Circle, ChevronRight, RotateCcw } from 'lucide-react';
 
@@ -85,10 +86,10 @@ export default function WeeklyReviewView() {
   const fetchStats = useCallback(async () => {
     try {
       const [inboxRes, stuckRes, waitingRes, somedayRes] = await Promise.all([
-        fetch('/api/inbox/count'),
-        fetch('/api/projects/stuck'),
-        fetch('/api/tasks/waiting'),
-        fetch('/api/tasks/someday'),
+        fetch(`${API}/api/inbox/count`),
+        fetch(`${API}/api/projects/stuck`),
+        fetch(`${API}/api/tasks/waiting`),
+        fetch(`${API}/api/tasks/someday`),
       ]);
       const inbox = await inboxRes.json();
       const stuck = await stuckRes.json();
@@ -103,7 +104,7 @@ export default function WeeklyReviewView() {
 
   const fetchReview = useCallback(async () => {
     try {
-      const res = await fetch(`/api/weekly-review?week_start=${weekStart}`);
+      const res = await fetch(`${API}/api/weekly-review?week_start=${weekStart}`);
       const data = await res.json();
       if (data && data.notes) setNotes(data.notes || '');
       if (data && data.completed_at) setSavedAt(data.completed_at);
@@ -135,7 +136,7 @@ export default function WeeklyReviewView() {
     setSaving(true);
     const completedAt = allChecked ? new Date().toISOString() : null;
     try {
-      await fetch('/api/weekly-review', {
+      await fetch(`${API}/api/weekly-review`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ week_start: weekStart, notes, completed_at: completedAt }),

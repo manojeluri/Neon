@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import { FolderPlus, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Archive, Trash2, Plus, Target } from 'lucide-react';
@@ -13,7 +14,7 @@ function AddProjectForm({ onClose, onSaved }) {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch('/api/projects', {
+      const res = await fetch(`${API}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: title.trim(), purpose, outcome }),
@@ -78,7 +79,7 @@ function AddTaskToProjectForm({ projectId, onClose, onSaved }) {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      await fetch('/api/tasks', {
+      await fetch(`${API}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,7 +133,7 @@ function ProjectCard({ project, stuckIds, onStatusChange, onDelete }) {
   const loadTasks = useCallback(async () => {
     setLoadingTasks(true);
     try {
-      const res = await fetch(`/api/projects/${project.id}/tasks`);
+      const res = await fetch(`${API}/api/projects/${project.id}/tasks`);
       setTasks(await res.json());
     } catch (err) { console.error(err); }
     finally { setLoadingTasks(false); }
@@ -145,7 +146,7 @@ function ProjectCard({ project, stuckIds, onStatusChange, onDelete }) {
   };
 
   const handleTaskDone = async (taskId) => {
-    await fetch(`/api/tasks/${taskId}`, {
+    await fetch(`${API}/api/tasks/${taskId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ completed: 1 }),
@@ -274,8 +275,8 @@ export default function ProjectsView() {
   const fetchProjects = useCallback(async () => {
     try {
       const [projRes, stuckRes] = await Promise.all([
-        fetch('/api/projects'),
-        fetch('/api/projects/stuck'),
+        fetch(`${API}/api/projects`),
+        fetch(`${API}/api/projects/stuck`),
       ]);
       const all = await projRes.json();
       const stuck = await stuckRes.json();
@@ -288,7 +289,7 @@ export default function ProjectsView() {
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
   const handleStatusChange = async (id, status) => {
-    await fetch(`/api/projects/${id}`, {
+    await fetch(`${API}/api/projects/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -303,7 +304,7 @@ export default function ProjectsView() {
       danger: true,
       onConfirm: async () => {
         setConfirm(null);
-        await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+        await fetch(`${API}/api/projects/${id}`, { method: 'DELETE' });
         fetchProjects();
       },
     });

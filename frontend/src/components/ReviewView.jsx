@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 
@@ -47,9 +48,9 @@ export default function ReviewView() {
     setLoading(true);
     try {
       const [todayRes, tomorrowRes, reviewRes] = await Promise.all([
-        fetch(`/api/tasks?date=${today}`),
-        fetch(`/api/tasks?date=${tomorrow}`),
-        fetch(`/api/review?date=${today}`),
+        fetch(`${API}/api/tasks?date=${today}`),
+        fetch(`${API}/api/tasks?date=${tomorrow}`),
+        fetch(`${API}/api/review?date=${today}`),
       ]);
       const todayData = await todayRes.json();
       const tomorrowData = await tomorrowRes.json();
@@ -74,7 +75,7 @@ export default function ReviewView() {
   const completed = todayTasks.filter((t) => t.completed);
 
   const carryTask = async (task) => {
-    await fetch(`/api/tasks/${task.id}`, {
+    await fetch(`${API}/api/tasks/${task.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ date: tomorrow, is_top3: 0 }),
@@ -85,7 +86,7 @@ export default function ReviewView() {
 
   const archiveTask = async (task) => {
     // Archive = complete without carrying
-    await fetch(`/api/tasks/${task.id}`, {
+    await fetch(`${API}/api/tasks/${task.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ completed: true }),
@@ -100,7 +101,7 @@ export default function ReviewView() {
       danger: true,
       onConfirm: async () => {
         setConfirm(null);
-        await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+        await fetch(`${API}/api/tasks/${task.id}`, { method: 'DELETE' });
         setTodayTasks((prev) => prev.filter((t) => t.id !== task.id));
       },
     });
@@ -112,7 +113,7 @@ export default function ReviewView() {
       alert('Top 3 for tomorrow is full. Remove one first.');
       return;
     }
-    const res = await fetch(`/api/tasks/${task.id}`, {
+    const res = await fetch(`${API}/api/tasks/${task.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_top3: task.is_top3 ? 0 : 1 }),
@@ -124,7 +125,7 @@ export default function ReviewView() {
   const saveReview = async () => {
     setSaving(true);
     try {
-      await fetch('/api/review', {
+      await fetch(`${API}/api/review`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: today, ...review }),

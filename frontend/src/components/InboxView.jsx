@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Inbox, Trash2, ArrowRight, FolderPlus, Clock, Zap } from 'lucide-react';
 
@@ -38,20 +39,20 @@ function ProcessPanel({ item, projects, onDone }) {
     setSaveError('');
     try {
       if (r === 'trash') {
-        await fetch(`/api/inbox/${item.id}`, { method: 'DELETE' });
+        await fetch(`${API}/api/inbox/${item.id}`, { method: 'DELETE' });
         onDone();
         return;
       }
 
       let res;
       if (r === 'someday') {
-        res = await fetch('/api/tasks', {
+        res = await fetch(`${API}/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: title.trim(), list_type: 'someday', priority }),
         });
       } else if (r === 'project') {
-        res = await fetch('/api/projects', {
+        res = await fetch(`${API}/api/projects`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -61,7 +62,7 @@ function ProcessPanel({ item, projects, onDone }) {
           }),
         });
       } else if (r === 'task') {
-        res = await fetch('/api/tasks', {
+        res = await fetch(`${API}/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -80,7 +81,7 @@ function ProcessPanel({ item, projects, onDone }) {
         throw new Error(d.error || `Server error ${res.status}`);
       }
 
-      await fetch(`/api/inbox/${item.id}`, { method: 'DELETE' });
+      await fetch(`${API}/api/inbox/${item.id}`, { method: 'DELETE' });
       onDone();
     } catch (err) {
       console.error(err);
@@ -138,7 +139,7 @@ function ProcessPanel({ item, projects, onDone }) {
             <div className="two-min-rule">
               <Zap size={11} />
               <span>Two-minute rule — do it now instead of adding it.</span>
-              <button onClick={() => { fetch(`/api/inbox/${item.id}`, { method: 'DELETE' }); onDone(); }}>
+              <button onClick={() => { fetch(`${API}/api/inbox/${item.id}`, { method: 'DELETE' }); onDone(); }}>
                 Done now
               </button>
             </div>
@@ -285,8 +286,8 @@ export default function InboxView({ onInboxChange }) {
   const fetchItems = useCallback(async () => {
     try {
       const [itemsRes, projectsRes] = await Promise.all([
-        fetch('/api/inbox'),
-        fetch('/api/projects'),
+        fetch(`${API}/api/inbox`),
+        fetch(`${API}/api/projects`),
       ]);
       setItems(await itemsRes.json());
       setProjects(await projectsRes.json());
@@ -303,7 +304,7 @@ export default function InboxView({ onInboxChange }) {
     setCapturing(true);
     setCaptureError('');
     try {
-      const res = await fetch('/api/inbox', {
+      const res = await fetch(`${API}/api/inbox`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: text }),
@@ -332,7 +333,7 @@ export default function InboxView({ onInboxChange }) {
   };
 
   const handleDelete = async (id) => {
-    await fetch(`/api/inbox/${id}`, { method: 'DELETE' });
+    await fetch(`${API}/api/inbox/${id}`, { method: 'DELETE' });
     setItems((prev) => prev.filter((i) => i.id !== id));
     onInboxChange?.();
   };

@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Telescope, Target, Flame, Plus, Trash2, Edit3, Check, X } from 'lucide-react';
 
@@ -176,7 +177,7 @@ export default function GoalsView() {
 
   const fetchGoals = useCallback(async () => {
     try {
-      const res = await fetch('/api/goals');
+      const res = await fetch(`${API}/api/goals`);
       setGoals(await res.json());
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -185,7 +186,7 @@ export default function GoalsView() {
   useEffect(() => { fetchGoals(); }, [fetchGoals]);
 
   const handleAdd = async (data) => {
-    const res = await fetch('/api/goals', {
+    const res = await fetch(`${API}/api/goals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -195,12 +196,12 @@ export default function GoalsView() {
   };
 
   const handleDelete = async (id) => {
-    await fetch(`/api/goals/${id}`, { method: 'DELETE' });
+    await fetch(`${API}/api/goals/${id}`, { method: 'DELETE' });
     setGoals((prev) => prev.filter((g) => g.id !== id));
   };
 
   const handleUpdate = async (id, fields) => {
-    const res = await fetch(`/api/goals/${id}`, {
+    const res = await fetch(`${API}/api/goals/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),

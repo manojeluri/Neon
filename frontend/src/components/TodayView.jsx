@@ -1,3 +1,4 @@
+import { API } from '../api';
 import React, { useState, useEffect, useCallback } from 'react';
 import TaskForm from './TaskForm.jsx';
 import ConfirmDialog from './ConfirmDialog.jsx';
@@ -153,8 +154,8 @@ export default function TodayView() {
     setLoading(true);
     try {
       const [tasksRes, nowRes] = await Promise.all([
-        fetch(`/api/tasks?date=${today}`),
-        fetch('/api/tasks/now'),
+        fetch(`${API}/api/tasks?date=${today}`),
+        fetch(`${API}/api/tasks/now`),
       ]);
       const tasksData = await tasksRes.json();
       const nowData = await nowRes.json();
@@ -171,7 +172,7 @@ export default function TodayView() {
 
   const updateTask = async (id, fields) => {
     try {
-      const res = await fetch(`/api/tasks/${id}`, {
+      const res = await fetch(`${API}/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fields),
@@ -194,7 +195,7 @@ export default function TodayView() {
     const newCompleted = !task.completed;
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newCompleted ? 1 : 0 } : t));
     try {
-      await fetch(`/api/tasks/${task.id}`, {
+      await fetch(`${API}/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completed: newCompleted }),
@@ -209,7 +210,7 @@ export default function TodayView() {
       danger: true,
       onConfirm: async () => {
         setConfirm(null);
-        await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+        await fetch(`${API}/api/tasks/${id}`, { method: 'DELETE' });
         setTasks(prev => prev.filter(t => t.id !== id));
         if (id === nowTaskId) setNowTaskId(null);
       },
@@ -217,7 +218,7 @@ export default function TodayView() {
   };
 
   const addTask = async (fields) => {
-    const res = await fetch('/api/tasks', {
+    const res = await fetch(`${API}/api/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...fields, date: today }),
@@ -236,7 +237,7 @@ export default function TodayView() {
     const trimmed = quickTitle.trim();
     if (!trimmed) return;
     try {
-      const res = await fetch('/api/tasks', {
+      const res = await fetch(`${API}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed, date: today, priority: 'should', energy: 'light' }),
@@ -259,7 +260,7 @@ export default function TodayView() {
       onConfirm: async () => {
         setConfirm(null);
         const tomorrow = getTomorrow(today);
-        await Promise.all(unfinished.map(t => fetch(`/api/tasks/${t.id}`, {
+        await Promise.all(unfinished.map(t => fetch(`${API}/api/tasks/${t.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ date: tomorrow, is_top3: 0 }),
