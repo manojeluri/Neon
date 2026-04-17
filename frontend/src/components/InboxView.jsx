@@ -81,7 +81,7 @@ function ProcessPanel({ item, projects, onDone }) {
         throw new Error(d.error || `Server error ${res.status}`);
       }
 
-      await fetch(`${API}/api/inbox/${item.id}`, { method: 'DELETE' });
+      await fetch(`${API}/api/inbox/${item.id}`, { method: 'DELETE' }).catch((e) => console.error('inbox delete failed', e));
       onDone();
     } catch (err) {
       console.error(err);
