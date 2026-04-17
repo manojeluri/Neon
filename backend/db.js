@@ -1,7 +1,8 @@
-const { createClient } = require('@libsql/client');
+// Use HTTP client — no native binaries, works in Vercel serverless
+const { createClient } = require('@libsql/client/http');
 
 const client = createClient({
-  url: process.env.TURSO_DATABASE_URL || 'file:discipline.db',
+  url: process.env.TURSO_DATABASE_URL,
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 

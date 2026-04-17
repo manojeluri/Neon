@@ -1,3 +1,8 @@
+// Load .env for local development
+if (!process.env.TURSO_DATABASE_URL) {
+  try { require('dotenv').config({ path: require('path').join(__dirname, '../.env') }); } catch (_) {}
+}
+
 const express = require('express');
 const cors = require('cors');
 const {
