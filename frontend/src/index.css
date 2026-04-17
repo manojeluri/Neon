@@ -2340,22 +2340,187 @@ details[open] .completed-summary::before { content: '▼  '; }
 /* ═══════════════════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — TABLET (≤ 900px)
+═══════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
   .inbox-view { gap: 0; }
   .wr-layout { flex-direction: column; }
   .wr-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .goals-horizons { grid-template-columns: 1fr; }
+  .planner-body { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 600px) {
-  .app { padding: 1.25rem 1rem 4rem; }
-  .app-header-left h1 { font-size: 1rem; letter-spacing: 0.1em; }
-  .planner-body { grid-template-columns: 1fr; }
-  .calendar-container { padding: 14px 12px; }
-  .cal-day-num { font-size: 0.7rem; }
-  .tab-btn { font-size: 0.56rem; padding: 0.42rem 0.2rem; gap: 3px; }
-  .tab-btn svg { display: none; }
-  .task-form-row { flex-direction: column; }
-  .cmd-card { padding: 20px 18px 18px; }
-  .focus-task-name { font-size: 1.1rem; }
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — MOBILE (≤ 768px)
+═══════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── App shell ── */
+  .app {
+    padding: 1rem 0.9rem 6rem;
+  }
+
+  /* ── Header ── */
+  .app-header { margin-bottom: 1.25rem; }
+  .app-header-left h1 { font-size: 1.2rem; letter-spacing: 0.12em; }
+  .date-label { font-size: 0.62rem; }
+
+  /* ── Bottom tab bar ── */
+  .tab-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0;
+    margin-bottom: 0;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--b-soft);
+    padding: 0;
+    background: rgba(8, 4, 1, 0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .tab-btn {
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 2px 10px;
+    min-width: unset;
+    min-height: 52px;
+    border-radius: 0;
+    border: none;
+    border-top: 2px solid transparent;
+    font-size: 0.44rem;
+    white-space: nowrap;
+  }
+
+  .tab-btn svg {
+    display: block !important;
+    width: 17px; height: 17px;
+  }
+
+  .tab-btn--active {
+    background: transparent;
+    border-top-color: var(--accent);
+    color: var(--accent);
+    box-shadow: none;
+  }
+
+  .tab-badge {
+    position: absolute;
+    top: 4px; right: -2px;
+    width: 14px; height: 14px;
+    font-size: 0.44rem;
+  }
+
+  /* ── Task card actions — always visible on touch ── */
+  .task-card-actions { opacity: 1 !important; }
+  .task-actions { opacity: 1 !important; }
+
+  /* ── Task card icons — bigger touch targets ── */
+  .btn-icon {
+    width: 32px; height: 32px;
+    font-size: 0.9rem;
+  }
+
+  .btn-toggle {
+    width: 26px; height: 26px; min-width: 26px;
+  }
+  .btn-toggle--sm { width: 22px; height: 22px; min-width: 22px; }
+
+  /* ── Forms — stack all rows vertically ── */
+  .task-form-row { flex-direction: column; gap: 8px; }
+  .task-form-row .form-group { flex: unset !important; }
+
+  /* ── Project card — wrap actions below title ── */
+  .project-card-header {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+  .project-card-right {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .project-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .proj-btn {
+    padding: 5px 10px;
+    font-size: 0.68rem;
+  }
+
+  /* ── Calendar ── */
+  .calendar-container { padding: 12px 8px; }
+  .cal-day-num { font-size: 0.65rem; }
+  .cal-day-cell { min-height: 42px; padding: 4px; }
+  .cal-weekday { font-size: 0.55rem; padding: 4px 0; }
+
+  /* ── Today view / cmd cards ── */
+  .cmd-card { padding: 18px 14px 14px; }
+  .focus-task-name { font-size: 1rem; }
+  .s-row { padding: 9px 12px; }
+
+  /* ── Planner date header ── */
+  .planner-header { gap: 8px; }
+  .planner-nav-btn { width: 32px; height: 32px; font-size: 1.1rem; }
+  .planner-date-label { font-size: 0.72rem; }
+
+  /* ── Review view ── */
+  .review-header { margin-bottom: 1rem; }
+  .review-title { font-size: 0.9rem; }
+
+  /* ── Carry task row ── */
+  .carry-task-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .carry-task-actions { width: 100%; justify-content: flex-end; }
+
+  /* ── Inbox ── */
+  .capture-bar { gap: 6px; }
+  .capture-input { font-size: 0.82rem; }
+
+  /* ── Projects header ── */
+  .projects-header { flex-wrap: wrap; gap: 8px; }
+  .projects-subtabs { flex-wrap: wrap; gap: 4px; }
+
+  /* ── Goals ── */
+  .goals-horizons { grid-template-columns: 1fr; }
+  .horizon-header { flex-wrap: wrap; }
+
+  /* ── Weekly review ── */
+  .wr-layout { flex-direction: column; }
+  .wr-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; }
+
+  /* ── Modals / dialogs — full width on mobile ── */
+  .modal-panel { width: calc(100% - 2rem); max-width: 100%; }
+  .confirm-box { width: calc(100% - 2rem); max-width: 100%; }
+
+  /* ── AI view ── */
+  .ai-btn--primary { width: 100%; justify-content: center; }
+  .ai-results-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* ── Subtab nav — scrollable ── */
+  .subtab-nav {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    flex-wrap: nowrap;
+  }
+  .subtab-nav::-webkit-scrollbar { display: none; }
+  .subtab-btn { flex-shrink: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE — SMALL PHONES (≤ 390px)
+═══════════════════════════════════════════════════════ */
+@media (max-width: 390px) {
+  .app { padding: 0.75rem 0.75rem 6rem; }
+  .app-header-left h1 { font-size: 1rem; }
+  .tab-btn { font-size: 0.38rem; }
+  .tab-btn svg { width: 15px; height: 15px; }
+  .task-card-title { font-size: 0.78rem; }
+  .cal-day-cell { min-height: 36px; }
 }
