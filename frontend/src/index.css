@@ -2366,49 +2366,58 @@ details[open] .completed-summary::before { content: '▼  '; }
   .app-header-left h1 { font-size: 1.2rem; letter-spacing: 0.12em; }
   .date-label { font-size: 0.62rem; }
 
-  /* ── Bottom tab bar ── */
+  /* ── Bottom tab bar — 2 rows of 4 ── */
   .tab-nav {
     position: fixed;
     bottom: 0; left: 0; right: 0;
     z-index: 50;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 0;
     margin-bottom: 0;
     border-radius: 0;
     border: none;
     border-top: 1px solid var(--b-soft);
     padding: 0;
-    background: rgba(8, 4, 1, 0.96);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(8, 4, 1, 0.97);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .tab-btn {
     flex-direction: column;
-    gap: 3px;
-    padding: 8px 2px 10px;
+    gap: 4px;
+    padding: 10px 4px 11px;
     min-width: unset;
-    min-height: 52px;
+    min-height: 56px;
     border-radius: 0;
     border: none;
     border-top: 2px solid transparent;
-    font-size: 0.44rem;
+    font-size: 0.52rem;
     white-space: nowrap;
   }
 
+  /* Divider between the two rows */
+  .tab-btn:nth-child(5) { border-top: 1px solid var(--b-soft); }
+  .tab-btn:nth-child(6) { border-top: 1px solid var(--b-soft); }
+  .tab-btn:nth-child(7) { border-top: 1px solid var(--b-soft); }
+  .tab-btn:nth-child(8) { border-top: 1px solid var(--b-soft); }
+
   .tab-btn svg {
     display: block !important;
-    width: 17px; height: 17px;
+    width: 18px; height: 18px;
   }
 
   .tab-btn--active {
-    background: transparent;
+    background: rgba(255,110,0,0.08);
     border-top-color: var(--accent);
     color: var(--accent);
     box-shadow: none;
   }
+
+  /* App needs more bottom padding for 2-row tab bar */
+  .app { padding-bottom: 8rem; }
 
   .tab-badge {
     position: absolute;
@@ -2517,10 +2526,10 @@ details[open] .completed-summary::before { content: '▼  '; }
    RESPONSIVE — SMALL PHONES (≤ 390px)
 ═══════════════════════════════════════════════════════ */
 @media (max-width: 390px) {
-  .app { padding: 0.75rem 0.75rem 6rem; }
+  .app { padding: 0.75rem 0.75rem 8rem; }
   .app-header-left h1 { font-size: 1rem; }
-  .tab-btn { font-size: 0.38rem; }
-  .tab-btn svg { width: 15px; height: 15px; }
+  .tab-btn { font-size: 0.48rem; padding: 9px 4px 10px; }
+  .tab-btn svg { width: 16px; height: 16px; }
   .task-card-title { font-size: 0.78rem; }
   .cal-day-cell { min-height: 36px; }
 }
