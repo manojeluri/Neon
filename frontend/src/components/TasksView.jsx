@@ -53,13 +53,13 @@ export default function TasksView() {
     setLoading(true);
     try {
       let url;
-      if (subtab === 'inbox')    url = '/api/tasks/inbox';
-      else if (subtab === 'today')    url = `/api/tasks?date=${today}`;
-      else if (subtab === 'tomorrow') url = `/api/tasks?date=${tomorrow}`;
-      else if (subtab === 'later')    url = `/api/tasks/later?after=${tomorrow}`;
-      else if (subtab === 'waiting')  url = '/api/tasks/waiting';
-      else if (subtab === 'someday')  url = '/api/tasks/someday';
-      else if (subtab === 'contexts') url = `/api/tasks/contexts?context=${activeContext}`;
+      if (subtab === 'inbox')    url = `${API}/api/tasks/inbox`;
+      else if (subtab === 'today')    url = `${API}/api/tasks?date=${today}`;
+      else if (subtab === 'tomorrow') url = `${API}/api/tasks?date=${tomorrow}`;
+      else if (subtab === 'later')    url = `${API}/api/tasks/later?after=${tomorrow}`;
+      else if (subtab === 'waiting')  url = `${API}/api/tasks/waiting`;
+      else if (subtab === 'someday')  url = `${API}/api/tasks/someday`;
+      else if (subtab === 'contexts') url = `${API}/api/tasks/contexts?context=${activeContext}`;
 
       const [tasksRes, nowRes] = await Promise.all([
         fetch(url),
