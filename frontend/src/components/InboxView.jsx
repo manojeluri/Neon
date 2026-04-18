@@ -159,10 +159,14 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
     if (action === 'task') onTaskCreated?.();
   };
 
-  const handleDelete = async (id) => {
-    await fetch(`${API}/api/inbox/${id}`, { method: 'DELETE' });
+  const handleDelete = (id) => {
+    // Optimistic: remove immediately, fire request in background
     setItems((prev) => prev.filter((i) => i.id !== id));
     onInboxChange?.();
+    fetch(`${API}/api/inbox/${id}`, { method: 'DELETE' }).catch((err) => {
+      console.error('Delete failed, re-fetching:', err);
+      fetchItems(); // restore state if it failed
+    });
   };
 
   return (
