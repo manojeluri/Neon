@@ -26,6 +26,9 @@ export default function App() {
   const [tab, setTab] = useState('today');
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [inboxCount, setInboxCount] = useState(0);
+  const [taskRefreshKey, setTaskRefreshKey] = useState(0);
+
+  const refreshTasks = () => setTaskRefreshKey((k) => k + 1);
 
   const today = getTodayStr();
 
@@ -80,9 +83,9 @@ export default function App() {
           ))}
         </nav>
 
-        <div style={{ display: tab === 'inbox'    ? 'block' : 'none' }}><InboxView onInboxChange={refreshInboxCount} /></div>
+        <div style={{ display: tab === 'inbox'    ? 'block' : 'none' }}><InboxView onInboxChange={refreshInboxCount} onTaskCreated={refreshTasks} /></div>
         <div style={{ display: tab === 'today'    ? 'block' : 'none' }}><TodayView /></div>
-        <div style={{ display: tab === 'tasks'    ? 'block' : 'none' }}><TasksView /></div>
+        <div style={{ display: tab === 'tasks'    ? 'block' : 'none' }}><TasksView refreshKey={taskRefreshKey} /></div>
         <div style={{ display: tab === 'projects' ? 'block' : 'none' }}><ProjectsView /></div>
         <div style={{ display: tab === 'calendar' ? 'block' : 'none' }}>
           <Calendar

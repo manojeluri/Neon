@@ -78,7 +78,7 @@ function ProcessPanel({ item, onDone, onCancel }) {
   );
 }
 
-export default function InboxView({ onInboxChange }) {
+export default function InboxView({ onInboxChange, onTaskCreated }) {
   const [items, setItems] = useState([]);
   const [capture, setCapture] = useState('');
   const [loading, setLoading] = useState(true);
@@ -130,6 +130,7 @@ export default function InboxView({ onInboxChange }) {
     setProcessingId(null);
     fetchItems();
     onInboxChange?.();
+    onTaskCreated?.();
   };
 
   const handleDelete = async (id) => {

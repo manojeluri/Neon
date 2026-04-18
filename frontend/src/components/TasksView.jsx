@@ -27,7 +27,7 @@ const SUBTABS = [
 
 const CONTEXTS = ['anywhere', 'computer', 'phone', 'errands', 'home', 'office'];
 
-export default function TasksView() {
+export default function TasksView({ refreshKey = 0 }) {
   const today = getTodayStr();
   const tomorrow = addDays(today, 1);
 
@@ -93,6 +93,13 @@ export default function TasksView() {
     fetchTasks();
     setShowAddForm(false);
   }, [fetchTasks]);
+
+  // External refresh (e.g. task created from Inbox) — clear cache and refetch
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    cacheRef.current = {};
+    fetchTasks();
+  }, [refreshKey]);
 
   const updateTask = async (id, fields) => {
     try {
