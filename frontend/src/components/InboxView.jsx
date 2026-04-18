@@ -96,7 +96,7 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
 
     // Optimistic update — add immediately, reconcile after server responds
     const tempId = `temp-${Date.now()}`;
-    const tempItem = { id: tempId, content: text };
+    const tempItem = { id: tempId, _key: tempId, content: text };
     setItems((prev) => [tempItem, ...prev]);
     setCapture('');
     setCaptureError('');
@@ -114,8 +114,8 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
         throw new Error(d.error || `Server error ${res.status}`);
       }
       const newItem = await res.json();
-      // Replace temp item with the real one from the server
-      setItems((prev) => prev.map((i) => (i.id === tempId ? newItem : i)));
+      // Swap in the real ID but keep _key stable so React doesn't remount the component
+      setItems((prev) => prev.map((i) => (i.id === tempId ? { ...newItem, _key: tempId } : i)));
     } catch (err) {
       // Roll back the optimistic item and restore the input
       setItems((prev) => prev.filter((i) => i.id !== tempId));
@@ -203,7 +203,7 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
           <div className="inbox-list">
             {items.map((item) => (
               <InboxItem
-                key={item.id}
+                key={item._key || item.id}
                 item={item}
                 onAction={handleAction}
                 onDelete={() => handleDelete(item.id)}
