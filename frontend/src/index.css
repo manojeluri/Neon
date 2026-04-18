@@ -848,28 +848,33 @@ body {
   box-shadow: 0 0 14px rgba(255,110,0,0.12);
 }
 
+.task-card:hover { background: rgba(255,110,0,0.10); border-color: var(--b-mid); box-shadow: 0 0 14px rgba(255,110,0,0.12); }
 .task-card:hover .task-card-actions { opacity: 1; }
-.task-card--done { opacity: 0.40; }
+.task-card--done { opacity: 0.38; }
 .task-card--done .task-card-title {
   text-decoration: line-through; text-decoration-color: var(--t3); color: var(--t3);
 }
-
 .task-card--now {
   border-color: var(--accent-border);
   background: rgba(255,110,0,0.06);
   animation: neonBreathe 3.5s ease-in-out infinite;
 }
 
-.task-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.task-card-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.task-card-title { font-size: 0.84rem; font-weight: 500; color: var(--t1); line-height: 1.4; }
-.task-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.task-card-desc { font-size: 0.74rem; color: var(--t3); line-height: 1.4; }
+.task-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.task-card-title { font-size: 0.88rem; font-weight: 500; color: var(--t1); line-height: 1.4; }
+.task-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 1px; }
+.task-card-desc { font-size: 0.72rem; color: var(--t3); line-height: 1.4; }
+.task-waiting-chip { font-size: 0.68rem; color: var(--t3); font-style: italic; }
 
+/* Actions: always faintly visible, full opacity on hover/active states */
 .task-card-actions {
   display: flex; align-items: center; gap: 2px;
-  flex-shrink: 0; opacity: 0; transition: opacity var(--ease);
+  flex-shrink: 0;
+  opacity: 0.2;
+  transition: opacity var(--ease);
 }
+.task-card:hover .task-card-actions,
+.task-card--now .task-card-actions { opacity: 1; }
 
 /* ═══════════════════════════════════════════════════════
    ICON BUTTONS
@@ -1000,6 +1005,48 @@ body {
 .task-form-row { display: flex; gap: 10px; }
 .task-form .form-group { margin-bottom: 0; }
 .task-form-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+
+/* Title input — prominent, full width, no label needed */
+.task-form-title-input {
+  width: 100%;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--b-soft);
+  border-radius: var(--r-sm);
+  padding: 0.55rem 0.75rem;
+  color: var(--t1); font-size: 0.95rem; font-weight: 500;
+  font-family: inherit; outline: none;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.task-form-title-input:focus {
+  border-color: var(--b-focus);
+  box-shadow: var(--accent-glow);
+}
+.task-form-title-input::placeholder { color: var(--t3); font-weight: 400; }
+
+/* Inline row: priority pills + date side by side */
+.task-form-inline-row {
+  display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;
+}
+.task-form-group--priority { flex: 1; min-width: 180px; }
+.task-form-group--date { flex-shrink: 0; }
+.task-form-group--date input { width: auto; }
+
+/* More options toggle button */
+.task-form-more-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: transparent; border: none;
+  color: var(--t3); font-size: 0.72rem; font-family: inherit;
+  cursor: pointer; padding: 2px 0;
+  transition: color var(--ease);
+}
+.task-form-more-toggle:hover { color: var(--t2); }
+
+/* More options panel */
+.task-form-more {
+  display: flex; flex-direction: column; gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--b-soft);
+}
 
 .btn-cancel {
   background: transparent;
