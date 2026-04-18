@@ -1,96 +1,83 @@
 import { API } from '../api';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useRef } from 'react';
+import { FolderOpen, Sparkles, Plus, Check, AlertCircle } from 'lucide-react';
 
-const AGENT_URL = 'http://localhost:5001';
-const IS_PROD = import.meta.env.PROD;
+const RECENCY_OPTIONS = [
+  { label: '7 days',  days: 7  },
+  { label: '14 days', days: 14 },
+  { label: '30 days', days: 30 },
+  { label: 'All',     days: null },
+];
 
-function StatusDot({ status }) {
-  const color =
-    status === 'ready' ? 'var(--accent)'
-    : status === 'indexing' ? '#f5c518'
-    : status === 'error' ? '#e05252'
-    : 'rgba(255,140,60,0.3)';
-  return (
-    <span className="ai-status-dot" style={{ background: color }} />
-  );
+function cutoffMs(days) {
+  if (!days) return 0;
+  return Date.now() - days * 24 * 60 * 60 * 1000;
 }
 
 export default function AIView() {
-  const [vaultStatus, setVaultStatus] = useState(null); // null = unknown
-  const [indexing, setIndexing] = useState(false);
-  const [indexProgress, setIndexProgress] = useState({ current: 0, total: 0, file: '' });
-  const [generating, setGenerating] = useState(false);
-  const [todos, setTodos] = useState([]);
-  const [addedIds, setAddedIds] = useState(new Set());
-  const [error, setError] = useState('');
-  const [addingAll, setAddingAll] = useState(false);
-  const pollRef = useRef(null);
+  const [allFiles,    setAllFiles]    = useState([]); // { file, name, lastModified }
+  const [recencyDays, setRecencyDays] = useState(30);
+  const [extracting,  setExtracting]  = useState(false);
+  const [tasks,       setTasks]       = useState([]);
+  const [filesUsed,   setFilesUsed]   = useState(0);
+  const [addedIds,    setAddedIds]    = useState(new Set());
+  const [addingAll,   setAddingAll]   = useState(false);
+  const [error,       setError]       = useState('');
+  const fileInputRef = useRef(null);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch(`${AGENT_URL}/api/index/status`);
-      if (!res.ok) throw new Error('unreachable');
-      const data = await res.json();
-      setVaultStatus(data);
-      setError('');
-      return data;
-    } catch {
-      setVaultStatus(null);
-      setError('todoAgent server not reachable. Make sure it\'s running on port 5001.');
-      return null;
-    }
-  }, []);
+  // Filter to .md files within the chosen recency window
+  const filteredFiles = allFiles.filter(
+    (f) => f.lastModified >= cutoffMs(recencyDays)
+  );
 
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
-
-  const startPolling = useCallback(() => {
-    if (pollRef.current) return;
-    pollRef.current = setInterval(async () => {
-      const data = await fetchStatus();
-      if (!data) { stopPolling(); return; }
-      setIndexProgress({ current: data.progress || 0, total: data.total || 0, file: data.current_file || '' });
-      if (data.status !== 'indexing') {
-        stopPolling();
-        setIndexing(false);
-      }
-    }, 1500);
-  }, [fetchStatus]);
-
-  const stopPolling = () => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  };
-
-  useEffect(() => () => stopPolling(), []);
-
-  const handleIndex = async () => {
-    setError('');
-    setIndexing(true);
-    setIndexProgress({ current: 0, total: 0, file: '' });
-    try {
-      await fetch(`${AGENT_URL}/api/index`, { method: 'POST' });
-      startPolling();
-    } catch {
-      setError('Failed to start indexing.');
-      setIndexing(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    setError('');
-    setGenerating(true);
-    setTodos([]);
+  const handleFolderSelect = (e) => {
+    const mdFiles = Array.from(e.target.files)
+      .filter((f) => f.name.toLowerCase().endsWith('.md'))
+      .map((f) => ({ file: f, name: f.name, lastModified: f.lastModified }));
+    setAllFiles(mdFiles);
+    setTasks([]);
     setAddedIds(new Set());
+    setError('');
+    // Reset input so the same folder can be re-selected
+    e.target.value = '';
+  };
+
+  const handleExtract = async () => {
+    if (!filteredFiles.length) return;
+    setExtracting(true);
+    setTasks([]);
+    setAddedIds(new Set());
+    setError('');
+
     try {
-      const res = await fetch(`${AGENT_URL}/api/todos`, { method: 'POST' });
-      if (!res.ok) throw new Error('Generation failed');
+      // Read all file contents in parallel
+      const fileData = await Promise.all(
+        filteredFiles.map(
+          ({ file, name }) =>
+            new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload  = (e) => resolve({ name, content: e.target.result });
+              reader.onerror = reject;
+              reader.readAsText(file);
+            })
+        )
+      );
+
+      const res = await fetch(`${API}/api/ai/extract-tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: fileData }),
+      });
+
       const data = await res.json();
-      setTodos(data.todos || []);
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+
+      setTasks(data.tasks || []);
+      setFilesUsed(data.files_processed || filteredFiles.length);
     } catch (err) {
-      setError(err.message || 'Failed to generate tasks.');
+      setError(err.message || 'Extraction failed. Try again.');
     } finally {
-      setGenerating(false);
+      setExtracting(false);
     }
   };
 
@@ -101,7 +88,7 @@ export default function AIView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: text }),
       });
-      if (!res.ok) throw new Error('Failed to add');
+      if (!res.ok) throw new Error('Failed to add to inbox');
       setAddedIds((prev) => new Set([...prev, idx]));
     } catch (err) {
       setError(err.message);
@@ -110,145 +97,147 @@ export default function AIView() {
 
   const handleAddAll = async () => {
     setAddingAll(true);
-    const unadded = todos.filter((_, i) => !addedIds.has(i));
-    for (let i = 0; i < todos.length; i++) {
-      if (!addedIds.has(i)) {
-        await addToInbox(todos[i], i);
-      }
+    for (let i = 0; i < tasks.length; i++) {
+      if (!addedIds.has(i)) await addToInbox(tasks[i], i);
     }
     setAddingAll(false);
   };
 
-  const isReady = vaultStatus?.has_index;
-  const isIndexing = vaultStatus?.status === 'indexing' || indexing;
-  const progressPct = indexProgress.total > 0
-    ? Math.round((indexProgress.current / indexProgress.total) * 100)
-    : 0;
-  const unadded = todos.filter((_, i) => !addedIds.has(i));
-
-  if (IS_PROD) {
-    return (
-      <div className="ai-view">
-        <div className="ai-header">
-          <div className="ai-title-row">
-            <span className="ai-title">AI Task Generator</span>
-            <span className="ai-subtitle">Powered by your Obsidian vault</span>
-          </div>
-        </div>
-        <div className="ai-offline-hint">
-          <div className="ai-offline-title">Local only</div>
-          <div className="ai-offline-body">
-            The AI tab uses Ollama running on your local machine and is not available in the hosted version.
-            Run NEON locally to use this feature.
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const hasFiles    = allFiles.length > 0;
+  const hasFiltered = filteredFiles.length > 0;
+  const unadded     = tasks.filter((_, i) => !addedIds.has(i));
 
   return (
     <div className="ai-view">
+
       <div className="ai-header">
         <div className="ai-title-row">
-          <span className="ai-title">AI Task Generator</span>
-          <span className="ai-subtitle">Powered by your Obsidian vault</span>
+          <span className="ai-title">Extract Tasks from Notes</span>
+          <span className="ai-subtitle">
+            Select your Obsidian vault — AI scans your recent notes and surfaces open loops
+          </span>
         </div>
       </div>
 
-      {/* Vault status card */}
-      <div className="ai-card">
-        <div className="ai-card-row">
-          <StatusDot status={
-            !vaultStatus ? 'none'
-            : vaultStatus.status === 'indexing' ? 'indexing'
-            : vaultStatus.has_index ? 'ready'
-            : 'none'
-          } />
-          <span className="ai-vault-label">
-            {!vaultStatus
-              ? 'todoAgent offline'
-              : vaultStatus.status === 'indexing'
-              ? `Indexing… ${indexProgress.current}/${indexProgress.total} files`
-              : vaultStatus.has_index
-              ? `Vault indexed — ${vaultStatus.chunk_count?.toLocaleString() || 0} chunks`
-              : 'Vault not indexed yet'}
-          </span>
-          {!isIndexing && (
-            <button
-              className="ai-btn ai-btn--secondary"
-              onClick={handleIndex}
-              disabled={!vaultStatus || isIndexing}
-            >
-              {isReady ? 'Re-index' : 'Index Vault'}
-            </button>
-          )}
-        </div>
-
-        {isIndexing && indexProgress.total > 0 && (
-          <div className="ai-progress-wrap">
-            <div className="ai-progress-bar">
-              <div className="ai-progress-fill" style={{ width: `${progressPct}%` }} />
-            </div>
-            {indexProgress.file && (
-              <div className="ai-progress-file">{indexProgress.file}</div>
-            )}
+      {/* ── Step 1: Select folder ── */}
+      <div className="ai-step">
+        <div className="ai-step-label">1 — Select vault folder</div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".md"
+          multiple
+          {...{ webkitdirectory: '' }}
+          style={{ display: 'none' }}
+          onChange={handleFolderSelect}
+        />
+        <button
+          className="ai-select-btn"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <FolderOpen size={14} />
+          {hasFiles
+            ? `${allFiles.length} notes found — change folder`
+            : 'Select Obsidian vault folder'}
+        </button>
+        {hasFiles && (
+          <div className="ai-file-info">
+            {allFiles.length} .md file{allFiles.length !== 1 ? 's' : ''} found in vault
           </div>
         )}
       </div>
 
-      {/* Generate button */}
-      <button
-        className="ai-btn ai-btn--primary"
-        onClick={handleGenerate}
-        disabled={!isReady || generating || isIndexing}
-      >
-        {generating ? (
-          <><span className="ai-spinner" /> Generating…</>
-        ) : (
-          'Generate Tasks from Vault'
-        )}
-      </button>
+      {/* ── Step 2: Recency filter ── */}
+      {hasFiles && (
+        <div className="ai-step">
+          <div className="ai-step-label">2 — Filter to recent notes</div>
+          <div className="pill-group">
+            {RECENCY_OPTIONS.map(({ label, days }) => (
+              <button
+                key={label}
+                type="button"
+                className={`pill${recencyDays === days ? ' pill--active pill-energy-deep' : ''}`}
+                onClick={() => setRecencyDays(days)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className={`ai-file-info${!hasFiltered ? ' ai-file-info--warn' : ''}`}>
+            {hasFiltered
+              ? `${filteredFiles.length} note${filteredFiles.length !== 1 ? 's' : ''} in range`
+              : 'No notes modified in this period — try a wider range'}
+          </div>
+        </div>
+      )}
 
-      {error && <div className="ai-error">{error}</div>}
+      {/* ── Step 3: Extract ── */}
+      {hasFiles && (
+        <div className="ai-step">
+          <div className="ai-step-label">3 — Extract tasks</div>
+          <button
+            className="ai-btn ai-btn--primary"
+            onClick={handleExtract}
+            disabled={!hasFiltered || extracting}
+          >
+            {extracting ? (
+              <><span className="ai-spinner" />Scanning {filteredFiles.length} notes…</>
+            ) : (
+              <><Sparkles size={13} style={{ marginRight: 6 }} />Extract tasks from {filteredFiles.length} notes</>
+            )}
+          </button>
+        </div>
+      )}
 
-      {/* Results */}
-      {todos.length > 0 && (
+      {/* ── Error ── */}
+      {error && (
+        <div className="ai-error">
+          <AlertCircle size={13} style={{ flexShrink: 0 }} />
+          {error}
+        </div>
+      )}
+
+      {/* ── Results ── */}
+      {tasks.length > 0 && (
         <div className="ai-results">
           <div className="ai-results-header">
             <span className="ai-results-label">
-              {todos.length} tasks generated
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''} found across {filesUsed} notes
             </span>
-            {unadded.length > 0 && (
+            {unadded.length > 0 ? (
               <button
                 className="ai-btn ai-btn--add-all"
                 onClick={handleAddAll}
                 disabled={addingAll}
               >
-                {addingAll ? 'Adding…' : `Add All to Inbox (${unadded.length})`}
+                {addingAll ? 'Adding…' : `Add all to Inbox (${unadded.length})`}
               </button>
-            )}
-            {unadded.length === 0 && (
-              <span className="ai-all-added">All added to Inbox ✓</span>
+            ) : (
+              <span className="ai-all-added">
+                <Check size={12} style={{ marginRight: 4 }} />All added to Inbox
+              </span>
             )}
           </div>
 
           <div className="ai-todo-list">
-            {todos.map((todo, i) => {
+            {tasks.map((task, i) => {
               const added = addedIds.has(i);
               return (
                 <div
                   key={i}
                   className={`ai-todo-item${added ? ' ai-todo-item--added' : ''}`}
-                  style={{ animationDelay: `${i * 40}ms` }}
+                  style={{ animationDelay: `${i * 30}ms` }}
                 >
-                  <span className="ai-todo-check">{added ? '✓' : '◇'}</span>
-                  <span className="ai-todo-text">{todo}</span>
+                  <span className="ai-todo-check">
+                    {added ? <Check size={11} /> : '◇'}
+                  </span>
+                  <span className="ai-todo-text">{task}</span>
                   {!added && (
                     <button
                       className="ai-btn ai-btn--add"
-                      onClick={() => addToInbox(todo, i)}
+                      onClick={() => addToInbox(task, i)}
                     >
-                      + Inbox
+                      <Plus size={10} style={{ marginRight: 3 }} />Inbox
                     </button>
                   )}
                 </div>
@@ -258,15 +247,6 @@ export default function AIView() {
         </div>
       )}
 
-      {!vaultStatus && (
-        <div className="ai-offline-hint">
-          <div className="ai-offline-title">todoAgent not running</div>
-          <div className="ai-offline-body">
-            Start the agent server to enable AI task generation:
-            <code className="ai-code-block">cd ~/Desktop/Work/Coding/todoAgent && python server.py</code>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -31,7 +31,7 @@ app.use(cors({
     cb(new Error('Not allowed by CORS'));
   },
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // large enough for a batch of vault files
 
 // ─── Health check ────────────────────────────────────────────────────────────
 
@@ -312,6 +312,79 @@ app.get('/api/calendar', async (req, res) => {
     }
     res.json(await getMonthSummary(year, month));
   } catch (err) { res.status(500).json({ error: err?.message || String(err) }); }
+});
+
+// ─── AI ──────────────────────────────────────────────────────────────────────
+
+const OpenAI = require('openai');
+let _openai = null;
+function getOpenAI() {
+  if (!_openai) {
+    if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set on the server.');
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
+
+app.post('/api/ai/extract-tasks', async (req, res) => {
+  const { files } = req.body;
+  if (!Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({ error: 'No files provided.' });
+  }
+
+  try {
+    const openai = getOpenAI();
+
+    // Pack files into the prompt, stopping at ~60k chars to stay within token budget
+    const MAX_CHARS = 60000;
+    let combined = '';
+    let filesUsed = 0;
+    for (const f of files) {
+      if (typeof f.name !== 'string' || typeof f.content !== 'string') continue;
+      const block = `## ${f.name}\n${f.content.trim()}\n\n`;
+      if (combined.length + block.length > MAX_CHARS) break;
+      combined += block;
+      filesUsed++;
+    }
+
+    if (!combined.trim()) {
+      return res.status(400).json({ error: 'No readable content in the provided files.' });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a productivity assistant reading someone's personal notes.
+Extract all open loops, commitments, and things the person needs or wants to do.
+Return a JSON object with a single key "tasks" — an array of strings.
+Rules:
+- Each task must be a clear, actionable next action starting with a verb
+- Examples: "Call dentist to schedule checkup", "Read article on sleep optimization", "Reply to John about the project deadline"
+- Exclude vague ideas, completed items, and pure observations
+- Keep each task under 100 characters
+- Return 5–30 tasks, no duplicates`,
+        },
+        {
+          role: 'user',
+          content: `Here are my recent notes:\n\n${combined}\n\nExtract actionable tasks. Return only the JSON.`,
+        },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    const tasks = Array.isArray(result.tasks)
+      ? result.tasks.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
+      : [];
+
+    res.json({ tasks, files_processed: filesUsed });
+  } catch (err) {
+    console.error('AI extract error:', err);
+    res.status(500).json({ error: err.message || 'AI extraction failed.' });
+  }
 });
 
 // ─── Export for Vercel / start locally ────────────────────────────────────────

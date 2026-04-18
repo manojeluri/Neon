@@ -2288,8 +2288,41 @@ details[open] .completed-summary::before { content: '▼  '; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* Step-based UI */
+.ai-step {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.ai-step-label {
+  font-size: 0.68rem; font-weight: 700;
+  color: var(--t3); text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+/* Folder select button */
+.ai-select-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  align-self: flex-start;
+  background: rgba(255,110,0,0.08);
+  border: 1px solid rgba(255,110,0,0.3);
+  border-radius: var(--r-sm);
+  padding: 9px 16px;
+  color: var(--t1); font-size: 0.82rem; font-family: inherit;
+  cursor: pointer; transition: all var(--ease);
+}
+.ai-select-btn:hover {
+  background: rgba(255,110,0,0.15);
+  border-color: var(--accent);
+}
+
+/* File count / status line */
+.ai-file-info {
+  font-size: 0.72rem; color: var(--t3);
+}
+.ai-file-info--warn { color: #e08040; }
+
 /* Error */
 .ai-error {
+  display: flex; align-items: flex-start; gap: 8px;
   font-size: 0.75rem; color: #e05252;
   background: rgba(220,50,50,0.1);
   border: 1px solid rgba(220,50,50,0.25);
