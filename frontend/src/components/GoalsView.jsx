@@ -95,11 +95,13 @@ function HorizonSection({ horizon, goals, onAdd, onDelete, onUpdate }) {
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    setSaving(true);
-    await onAdd({ title: newTitle.trim(), description: newDesc, horizon: horizon.id });
+    const title = newTitle.trim();
+    const desc  = newDesc;
     setNewTitle('');
     setNewDesc('');
     setShowAdd(false);
+    setSaving(true);
+    await onAdd({ title, description: desc, horizon: horizon.id });
     setSaving(false);
   };
 
@@ -185,13 +187,19 @@ export default function GoalsView() {
   useEffect(() => { fetchGoals(); }, [fetchGoals]);
 
   const handleAdd = async (data) => {
-    const res = await fetch(`${API}/api/goals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const newGoal = await res.json();
-    setGoals((prev) => [...prev, newGoal]);
+    const tempId = `temp-${Date.now()}`;
+    setGoals((prev) => [...prev, { id: tempId, ...data }]);
+    try {
+      const res = await fetch(`${API}/api/goals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const newGoal = await res.json();
+      setGoals((prev) => prev.map((g) => g.id === tempId ? newGoal : g));
+    } catch {
+      setGoals((prev) => prev.filter((g) => g.id !== tempId));
+    }
   };
 
   const handleDelete = async (id) => {
