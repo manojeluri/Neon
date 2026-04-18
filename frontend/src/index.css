@@ -1664,56 +1664,49 @@ details[open] .completed-summary::before { content: '▼  '; }
 
 .inbox-list { display: flex; flex-direction: column; gap: 8px; }
 
-/* Inbox item — editable text + always-visible action buttons */
+/* Inbox item — single inline row: text left, actions right */
 .inbox-item {
   background: rgba(255,110,0,0.04);
   border: 1px solid var(--b-soft);
   border-radius: var(--r-sm);
-  padding: 12px 14px;
+  padding: 9px 12px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   transition: border-color var(--ease), background var(--ease);
 }
 .inbox-item:hover { background: rgba(255,110,0,0.07); border-color: var(--b-mid); }
 .inbox-item--saving { opacity: 0.6; pointer-events: none; }
 
-/* Text field — looks like plain text, editable on click */
+/* Text field — takes all available space, looks like plain text */
 .inbox-item-text-input {
+  flex: 1;
+  min-width: 120px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid transparent;
   outline: none;
   color: var(--t1);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-family: inherit;
-  width: 100%;
-  line-height: 1.5;
-  padding: 0 0 2px;
-  transition: border-color var(--ease);
-}
-.inbox-item-text-input:focus {
-  border-bottom-color: rgba(255,110,0,0.35);
+  line-height: 1.4;
+  padding: 0;
 }
 .inbox-item-text-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .inbox-item-error {
+  width: 100%;
   font-size: 0.75rem; color: #ff6060;
   background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.3);
   border-radius: var(--r-xs); padding: 5px 8px;
 }
 
-/* Action row: primary actions left, delete right */
-.inbox-item-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
+/* Actions sit inline to the right of the text */
 .inbox-item-actions {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 /* Base action button */
@@ -2516,8 +2509,7 @@ details[open] .completed-summary::before { content: '▼  '; }
   /* ── Inbox ── */
   .capture-bar { gap: 6px; }
   .capture-input { font-size: 0.82rem; }
-  .inbox-item-footer { flex-wrap: wrap; gap: 8px; }
-  .inbox-action { padding: 6px 12px; font-size: 0.73rem; }
+  .inbox-action { padding: 5px 10px; font-size: 0.73rem; }
 
   /* ── Projects header ── */
   .projects-header { flex-wrap: wrap; gap: 8px; }

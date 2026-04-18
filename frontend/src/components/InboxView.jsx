@@ -28,31 +28,28 @@ function InboxItem({ item, onAction, onDelete }) {
         disabled={!!saving}
         aria-label="Edit item"
       />
-      {error && <div className="inbox-item-error">{error}</div>}
-      <div className="inbox-item-footer">
-        <div className="inbox-item-actions">
-          <button
-            className="inbox-action inbox-action--task"
-            onClick={() => handleAction('task')}
-            disabled={!!saving || !title.trim()}
-          >
-            {saving === 'task' ? 'Saving…' : 'Task'}
-          </button>
-          <button
-            className="inbox-action inbox-action--project"
-            onClick={() => handleAction('project')}
-            disabled={!!saving || !title.trim()}
-          >
-            {saving === 'project' ? 'Saving…' : 'Project'}
-          </button>
-          <button
-            className="inbox-action inbox-action--someday"
-            onClick={() => handleAction('someday')}
-            disabled={!!saving || !title.trim()}
-          >
-            {saving === 'someday' ? 'Saving…' : 'Someday'}
-          </button>
-        </div>
+      <div className="inbox-item-actions">
+        <button
+          className="inbox-action inbox-action--task"
+          onClick={() => handleAction('task')}
+          disabled={!!saving || !title.trim()}
+        >
+          {saving === 'task' ? '…' : 'Task'}
+        </button>
+        <button
+          className="inbox-action inbox-action--project"
+          onClick={() => handleAction('project')}
+          disabled={!!saving || !title.trim()}
+        >
+          {saving === 'project' ? '…' : 'Project'}
+        </button>
+        <button
+          className="inbox-action inbox-action--someday"
+          onClick={() => handleAction('someday')}
+          disabled={!!saving || !title.trim()}
+        >
+          {saving === 'someday' ? '…' : 'Someday'}
+        </button>
         <button
           className="inbox-action inbox-action--delete"
           onClick={onDelete}
@@ -63,6 +60,7 @@ function InboxItem({ item, onAction, onDelete }) {
           <Trash2 size={14} />
         </button>
       </div>
+      {error && <div className="inbox-item-error">{error}</div>}
     </div>
   );
 }
