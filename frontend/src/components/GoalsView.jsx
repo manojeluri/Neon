@@ -202,9 +202,9 @@ export default function GoalsView() {
     }
   };
 
-  const handleDelete = async (id) => {
-    await fetch(`${API}/api/goals/${id}`, { method: 'DELETE' });
+  const handleDelete = (id) => {
     setGoals((prev) => prev.filter((g) => g.id !== id));
+    fetch(`${API}/api/goals/${id}`, { method: 'DELETE' }).catch(() => fetchGoals());
   };
 
   const handleUpdate = async (id, fields) => {
