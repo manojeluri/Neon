@@ -58,6 +58,14 @@ const SCHEMA = `
     completed_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS gcal_tokens (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    access_token TEXT,
+    refresh_token TEXT,
+    expiry_date INTEGER,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `;
 
 // Column migrations — silent on "duplicate column" errors
@@ -418,6 +426,30 @@ async function getMonthSummary(year, month) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// ─── GCal tokens ──────────────────────────────────────────────────────────────
+
+async function getGcalTokens() {
+  const rows = await all('SELECT * FROM gcal_tokens WHERE id = 1');
+  return rows[0] || null;
+}
+
+async function upsertGcalTokens({ access_token, refresh_token, expiry_date }) {
+  await run(
+    `INSERT INTO gcal_tokens (id, access_token, refresh_token, expiry_date, updated_at)
+     VALUES (1, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       access_token = excluded.access_token,
+       refresh_token = COALESCE(excluded.refresh_token, refresh_token),
+       expiry_date  = excluded.expiry_date,
+       updated_at   = excluded.updated_at`,
+    [access_token, refresh_token ?? null, expiry_date ?? null]
+  );
+}
+
+async function deleteGcalTokens() {
+  await run('DELETE FROM gcal_tokens WHERE id = 1');
+}
+
 module.exports = {
   ready,
   getTasksForDate, getInboxTasks, getTasksAfterDate, getNowTask,
@@ -429,4 +461,5 @@ module.exports = {
   getWeeklyReview, upsertWeeklyReview,
   getReviewForDate, upsertReview,
   getMonthSummary,
+  getGcalTokens, upsertGcalTokens, deleteGcalTokens,
 };

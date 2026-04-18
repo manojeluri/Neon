@@ -15,6 +15,7 @@ const {
   getWeeklyReview, upsertWeeklyReview,
   getReviewForDate, upsertReview,
   getMonthSummary,
+  getGcalTokens, upsertGcalTokens, deleteGcalTokens,
 } = require('./db');
 
 const app = express();
@@ -405,6 +406,120 @@ Rules:
   } catch (err) {
     console.error('AI extract error:', err);
     res.status(500).json({ error: err.message || 'AI extraction failed.' });
+  }
+});
+
+// ─── Google Calendar ──────────────────────────────────────────────────────────
+
+const { google } = require('googleapis');
+
+function getOAuthClient() {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    'https://neon-production-a406.up.railway.app/api/gcal/callback'
+  );
+}
+
+// GET /api/gcal/status — { connected: bool }
+app.get('/api/gcal/status', async (req, res) => {
+  try {
+    const tokens = await getGcalTokens();
+    res.json({ connected: !!(tokens?.refresh_token) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/gcal/auth — redirect to Google consent screen
+app.get('/api/gcal/auth', (req, res) => {
+  const oauth2Client = getOAuthClient();
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/calendar.readonly'],
+  });
+  res.redirect(url);
+});
+
+// GET /api/gcal/callback — exchange code for tokens, store, redirect to frontend
+app.get('/api/gcal/callback', async (req, res) => {
+  const { code, error } = req.query;
+  const frontendBase = (process.env.ALLOWED_ORIGINS || '').split(',')[0].trim() || 'http://localhost:5173';
+  if (error || !code) return res.redirect(`${frontendBase}?gcal=error`);
+  try {
+    const oauth2Client = getOAuthClient();
+    const { tokens } = await oauth2Client.getToken(code);
+    await upsertGcalTokens({
+      access_token:  tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expiry_date:   tokens.expiry_date,
+    });
+    res.redirect(`${frontendBase}?gcal=connected`);
+  } catch (err) {
+    console.error('GCal callback error:', err);
+    res.redirect(`${frontendBase}?gcal=error`);
+  }
+});
+
+// GET /api/gcal/events?start=ISO&end=ISO — return events in range
+app.get('/api/gcal/events', async (req, res) => {
+  try {
+    const tokens = await getGcalTokens();
+    if (!tokens?.refresh_token) return res.status(401).json({ error: 'Not connected' });
+
+    const oauth2Client = getOAuthClient();
+    oauth2Client.setCredentials({
+      access_token:  tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expiry_date:   tokens.expiry_date,
+    });
+
+    // Persist refreshed tokens if Google rotates them
+    oauth2Client.on('tokens', async (newTokens) => {
+      await upsertGcalTokens({
+        access_token:  newTokens.access_token,
+        refresh_token: newTokens.refresh_token,
+        expiry_date:   newTokens.expiry_date,
+      });
+    });
+
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const { start, end } = req.query;
+
+    const response = await calendar.events.list({
+      calendarId:   'primary',
+      timeMin:      start || new Date().toISOString(),
+      timeMax:      end   || new Date(Date.now() + 7 * 86400000).toISOString(),
+      singleEvents: true,
+      orderBy:      'startTime',
+      maxResults:   100,
+    });
+
+    const events = (response.data.items || []).map(e => ({
+      id:       e.id,
+      title:    e.summary || '(No title)',
+      start:    e.start?.dateTime || e.start?.date,
+      end:      e.end?.dateTime   || e.end?.date,
+      allDay:   !e.start?.dateTime,
+      location: e.location || null,
+      htmlLink: e.htmlLink || null,
+    }));
+
+    res.json(events);
+  } catch (err) {
+    console.error('GCal events error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/gcal/disconnect — remove stored tokens
+app.delete('/api/gcal/disconnect', async (req, res) => {
+  try {
+    await deleteGcalTokens();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

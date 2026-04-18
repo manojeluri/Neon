@@ -1,6 +1,6 @@
 import { API } from '../api';
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Unplug } from 'lucide-react';
 
 const DAY_NAMES  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTH_NAMES = [
@@ -53,6 +53,20 @@ function formatDayFull(dateStr) {
   });
 }
 
+function gcalEventTime(isoStr) {
+  if (!isoStr || !isoStr.includes('T')) return null; // all-day
+  const d = new Date(isoStr);
+  const h = d.getHours(), m = d.getMinutes();
+  return `${h % 12 || 12}:${pad(m)} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+function gcalEventsForDate(events, dateStr) {
+  return events.filter(e => {
+    const d = e.start?.includes('T') ? e.start.slice(0, 10) : e.start;
+    return d === dateStr;
+  });
+}
+
 export default function Calendar({ selectedDate, onSelectDate }) {
   const today    = getTodayStr();
   const initDate = selectedDate || today;
@@ -67,6 +81,50 @@ export default function Calendar({ selectedDate, onSelectDate }) {
   const [weekTasks,    setWeekTasks]    = useState({});
   const [dayTasks,     setDayTasks]     = useState([]);
   const [loading,      setLoading]      = useState(false);
+
+  // GCal
+  const [gcalConnected, setGcalConnected] = useState(false);
+  const [gcalEvents,    setGcalEvents]    = useState([]);
+
+  useEffect(() => {
+    fetch(`${API}/api/gcal/status`)
+      .then(r => r.json())
+      .then(d => setGcalConnected(!!d.connected))
+      .catch(() => {});
+  }, []);
+
+  // Check for ?gcal= param after OAuth redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('gcal');
+    if (status === 'connected') {
+      setGcalConnected(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Fetch GCal events whenever view/range changes and we're connected
+  useEffect(() => {
+    if (!gcalConnected) return;
+    let start, end;
+    if (calView === 'week') {
+      start = new Date(weekStart + 'T00:00:00').toISOString();
+      end   = new Date(addDays(weekStart, 6) + 'T23:59:59').toISOString();
+    } else if (calView === 'day') {
+      start = new Date(dayDate + 'T00:00:00').toISOString();
+      end   = new Date(dayDate + 'T23:59:59').toISOString();
+    } else {
+      // month: fetch whole month
+      const firstDay = `${viewYear}-${pad(viewMonth)}-01`;
+      const lastDay  = `${viewYear}-${pad(viewMonth)}-${pad(new Date(viewYear, viewMonth, 0).getDate())}`;
+      start = new Date(firstDay + 'T00:00:00').toISOString();
+      end   = new Date(lastDay  + 'T23:59:59').toISOString();
+    }
+    fetch(`${API}/api/gcal/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
+      .then(r => r.json())
+      .then(d => setGcalEvents(Array.isArray(d) ? d : []))
+      .catch(() => setGcalEvents([]));
+  }, [gcalConnected, calView, weekStart, dayDate, viewYear, viewMonth]);
 
   // ── Fetch: month summary ────────────────────────────────────────────────────
   useEffect(() => {
@@ -150,17 +208,33 @@ export default function Calendar({ selectedDate, onSelectDate }) {
   return (
     <div className="calendar-container">
 
-      {/* ── View switcher ── */}
-      <div className="cal-view-tabs">
-        {['month','week','day'].map(v => (
-          <button
-            key={v}
-            className={`cal-view-tab${calView === v ? ' cal-view-tab--active' : ''}`}
-            onClick={() => setCalView(v)}
-          >
-            {v.charAt(0).toUpperCase() + v.slice(1)}
+      {/* ── View switcher + GCal connect ── */}
+      <div className="cal-toolbar">
+        <div className="cal-view-tabs">
+          {['month','week','day'].map(v => (
+            <button
+              key={v}
+              className={`cal-view-tab${calView === v ? ' cal-view-tab--active' : ''}`}
+              onClick={() => setCalView(v)}
+            >
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+        {gcalConnected ? (
+          <button className="gcal-btn gcal-btn--connected" onClick={async () => {
+            await fetch(`${API}/api/gcal/disconnect`, { method: 'DELETE' });
+            setGcalConnected(false);
+            setGcalEvents([]);
+          }}>
+            <CalendarDays size={12} />Google Calendar
+            <Unplug size={11} style={{ opacity: 0.5 }} />
           </button>
-        ))}
+        ) : (
+          <a className="gcal-btn" href={`${API}/api/gcal/auth`}>
+            <CalendarDays size={12} />Connect Google Calendar
+          </a>
+        )}
       </div>
 
       {/* ══════════════════════ MONTH VIEW ══════════════════════════ */}
@@ -184,8 +258,9 @@ export default function Calendar({ selectedDate, onSelectDate }) {
           <div className="calendar-grid">
             {DAY_NAMES.map(n => <div key={n} className="cal-day-name">{n}</div>)}
             {cells.map(({ dateStr, day, outside }) => {
-              const data      = monthSummary[dateStr];
-              const taskCount = data?.tasksTotal || 0;
+              const data       = monthSummary[dateStr];
+              const taskCount  = data?.tasksTotal || 0;
+              const evtCount   = gcalEventsForDate(gcalEvents, dateStr).length;
               return (
                 <button
                   key={dateStr}
@@ -201,6 +276,7 @@ export default function Calendar({ selectedDate, onSelectDate }) {
                   <span className="cal-day-num">{day}</span>
                   <div className="cal-day-indicators">
                     {taskCount > 0 && <span className="cal-task-dot" title={`${taskCount} tasks`} />}
+                    {evtCount  > 0 && <span className="cal-gcal-dot" title={`${evtCount} events`} />}
                   </div>
                 </button>
               );
@@ -211,6 +287,11 @@ export default function Calendar({ selectedDate, onSelectDate }) {
             <span className="legend-item">
               <span className="legend-dot" style={{ background: 'var(--accent)' }} /> Tasks
             </span>
+            {gcalConnected && (
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: '#4285f4' }} /> GCal Events
+              </span>
+            )}
           </div>
         </>
       )}
@@ -239,6 +320,7 @@ export default function Calendar({ selectedDate, onSelectDate }) {
                 const tasks      = weekTasks[dateStr] || [];
                 const incomplete = tasks.filter(t => !t.completed);
                 const doneCount  = tasks.filter(t =>  t.completed).length;
+                const dayEvents  = gcalEventsForDate(gcalEvents, dateStr);
                 const isToday    = dateStr === today;
                 const dayNum     = parseInt(dateStr.slice(8), 10);
 
@@ -252,9 +334,17 @@ export default function Calendar({ selectedDate, onSelectDate }) {
                     </button>
 
                     <div className="cal-week-tasks">
-                      {incomplete.length === 0 && doneCount === 0 && (
+                      {incomplete.length === 0 && doneCount === 0 && dayEvents.length === 0 && (
                         <div className="cal-week-empty">—</div>
                       )}
+                      {dayEvents.map(evt => (
+                        <div key={evt.id} className="cal-week-task cal-week-task--gcal">
+                          {!evt.allDay && evt.start && (
+                            <span className="cal-week-task-time">{gcalEventTime(evt.start)}</span>
+                          )}
+                          <span className="cal-week-task-title">{evt.title}</span>
+                        </div>
+                      ))}
                       {incomplete
                         .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
                         .map(task => (
@@ -298,49 +388,59 @@ export default function Calendar({ selectedDate, onSelectDate }) {
             <div className="loading"><div className="spinner" /></div>
           ) : (
             <div className="cal-day-view">
-              {dayTasks.length === 0 ? (
-                <div className="planner-empty" style={{ marginTop: '1rem' }}>
-                  No tasks scheduled for this day.
-                </div>
-              ) : (
-                <>
-                  {/* Timed tasks — sorted by time */}
-                  {dayTasks
-                    .filter(t => t.time && !t.completed)
-                    .sort((a, b) => a.time.localeCompare(b.time))
-                    .map(task => (
-                      <div key={task.id} className="cal-day-task">
-                        <span className="cal-day-task-time">{formatTime(task.time)}</span>
-                        <span className="cal-day-task-title">{task.title}</span>
-                        {task.priority === 'must' && (
-                          <span className="priority-badge priority-must">Must</span>
-                        )}
-                      </div>
-                    ))
-                  }
+              {(() => {
+                const dayEvents   = gcalEventsForDate(gcalEvents, dayDate);
+                const timedTasks  = dayTasks.filter(t => t.time && !t.completed).sort((a,b) => a.time.localeCompare(b.time));
+                const untimedTasks= dayTasks.filter(t => !t.time && !t.completed);
+                const doneTasks   = dayTasks.filter(t => t.completed);
+                const isEmpty     = timedTasks.length === 0 && untimedTasks.length === 0 && doneTasks.length === 0 && dayEvents.length === 0;
+                if (isEmpty) return <div className="planner-empty" style={{ marginTop: '1rem' }}>No tasks or events scheduled for this day.</div>;
 
-                  {/* Untimed tasks */}
-                  {dayTasks
-                    .filter(t => !t.time && !t.completed)
-                    .map(task => (
+                // Merge timed tasks + timed GCal events, sort together
+                const timedItems = [
+                  ...timedTasks.map(t => ({ _type: 'task', sort: t.time, t })),
+                  ...dayEvents.filter(e => !e.allDay).map(e => ({ _type: 'gcal', sort: e.start?.slice(11,16) || '', e })),
+                ].sort((a, b) => a.sort.localeCompare(b.sort));
+
+                return (
+                  <>
+                    {/* All-day GCal events */}
+                    {dayEvents.filter(e => e.allDay).map(evt => (
+                      <div key={evt.id} className="cal-day-task cal-day-task--gcal">
+                        <span className="cal-day-task-time cal-day-task-time--allday">All day</span>
+                        <span className="cal-day-task-title">{evt.title}</span>
+                      </div>
+                    ))}
+
+                    {/* Timed items merged */}
+                    {timedItems.map((item, idx) => item._type === 'gcal' ? (
+                      <div key={item.e.id} className="cal-day-task cal-day-task--gcal">
+                        <span className="cal-day-task-time">{gcalEventTime(item.e.start)}</span>
+                        <span className="cal-day-task-title">{item.e.title}</span>
+                      </div>
+                    ) : (
+                      <div key={item.t.id} className="cal-day-task">
+                        <span className="cal-day-task-time">{formatTime(item.t.time)}</span>
+                        <span className="cal-day-task-title">{item.t.title}</span>
+                        {item.t.priority === 'must' && <span className="priority-badge priority-must">Must</span>}
+                      </div>
+                    ))}
+
+                    {/* Untimed tasks */}
+                    {untimedTasks.map(task => (
                       <div key={task.id} className="cal-day-task">
                         <span className="cal-day-task-time cal-day-task-time--none">—</span>
                         <span className="cal-day-task-title">{task.title}</span>
-                        {task.priority === 'must' && (
-                          <span className="priority-badge priority-must">Must</span>
-                        )}
+                        {task.priority === 'must' && <span className="priority-badge priority-must">Must</span>}
                       </div>
-                    ))
-                  }
+                    ))}
 
-                  {/* Completed summary */}
-                  {dayTasks.filter(t => t.completed).length > 0 && (
-                    <div className="cal-day-done">
-                      {dayTasks.filter(t => t.completed).length} completed
-                    </div>
-                  )}
-                </>
-              )}
+                    {doneTasks.length > 0 && (
+                      <div className="cal-day-done">{doneTasks.length} completed</div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </>
