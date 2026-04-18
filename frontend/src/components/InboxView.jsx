@@ -1,5 +1,5 @@
 import { API } from '../api';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Inbox, Trash2 } from 'lucide-react';
 
 const CONTEXTS = ['anywhere', 'computer', 'phone', 'errands', 'home', 'office'];
