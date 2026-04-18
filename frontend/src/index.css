@@ -2261,6 +2261,41 @@ details[open] .completed-summary::before { content: '▼  '; }
 
 .goal-add-form { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 
+.goal-input {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg-input);
+  border: 1px solid var(--b-soft);
+  border-radius: var(--r-sm);
+  color: var(--t1);
+  font-size: 0.82rem; font-family: inherit;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.goal-input::placeholder { color: var(--t3); }
+.goal-input:focus { border-color: var(--b-focus); box-shadow: var(--accent-glow); }
+.goal-input--textarea { resize: vertical; min-height: 56px; }
+
+.goal-form-actions {
+  display: flex; gap: 6px; justify-content: flex-end; padding-top: 2px;
+}
+.goal-btn {
+  padding: 5px 14px;
+  font-size: 0.74rem; font-weight: 600;
+  border-radius: var(--r-sm); border: 1px solid transparent;
+  cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+  font-family: inherit;
+}
+.goal-btn--cancel {
+  background: transparent; color: var(--t3); border-color: var(--b-faint);
+}
+.goal-btn--cancel:hover { background: var(--bg-item); color: var(--t2); border-color: var(--b-soft); }
+.goal-btn--save {
+  background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border);
+}
+.goal-btn--save:hover:not(:disabled) { background: rgba(255,110,0,0.22); }
+.goal-btn--save:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ═══════════════════════════════════════════════════════
    TASK CONTEXT / PROJECT / WAITING BADGES
 ═══════════════════════════════════════════════════════ */

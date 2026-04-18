@@ -49,18 +49,17 @@ function GoalItem({ goal, onDelete, onUpdate }) {
     return (
       <div className="goal-item goal-item--editing">
         <input
-          className="process-input"
+          className="goal-input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           autoFocus
         />
         <textarea
-          className="process-input"
+          className="goal-input goal-input--textarea"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Notes or context…"
           rows={2}
-          style={{ resize: 'vertical' }}
         />
         <div className="goal-edit-actions">
           <button className="icon-btn icon-btn--cancel" onClick={handleCancel}><X size={13} /></button>
@@ -145,21 +144,21 @@ function HorizonSection({ horizon, goals, onAdd, onDelete, onUpdate }) {
           {showAdd && (
             <form className="goal-add-form" onSubmit={handleAdd}>
               <input
-                className="process-input"
+                className="goal-input"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Goal title…"
                 autoFocus
               />
               <input
-                className="process-input"
+                className="goal-input"
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="Notes (optional)…"
               />
-              <div className="process-actions">
-                <button type="button" className="process-btn process-btn--back" onClick={() => { setShowAdd(false); setNewTitle(''); setNewDesc(''); }}>Cancel</button>
-                <button type="submit" className="process-btn process-btn--save" disabled={!newTitle.trim() || saving}>
+              <div className="goal-form-actions">
+                <button type="button" className="goal-btn goal-btn--cancel" onClick={() => { setShowAdd(false); setNewTitle(''); setNewDesc(''); }}>Cancel</button>
+                <button type="submit" className="goal-btn goal-btn--save" disabled={!newTitle.trim() || saving}>
                   {saving ? 'Adding…' : 'Add Goal'}
                 </button>
               </div>
