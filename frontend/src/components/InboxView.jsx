@@ -2,14 +2,8 @@ import { API } from '../api';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Inbox, Trash2 } from 'lucide-react';
 
-const CONTEXTS = ['anywhere', 'computer', 'phone', 'errands', 'home', 'office'];
-const PRIORITIES = ['must', 'should', 'could'];
-
-function ProcessPanel({ item, projects, onDone, onCancel }) {
-  const [route, setRoute] = useState(''); // '' | 'task' | 'project' | 'someday'
+function ProcessPanel({ item, onDone, onCancel }) {
   const [title, setTitle] = useState(item.content);
-  const [context, setContext] = useState('anywhere');
-  const [priority, setPriority] = useState('should');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -40,7 +34,7 @@ function ProcessPanel({ item, projects, onDone, onCancel }) {
         res = await fetch(`${API}/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: title.trim(), context, priority, list_type: 'active' }),
+          body: JSON.stringify({ title: title.trim(), context: 'anywhere', priority: 'should', list_type: 'active' }),
         });
       }
 
@@ -69,79 +63,23 @@ function ProcessPanel({ item, projects, onDone, onCancel }) {
         />
         <button className="process-cancel-btn" onClick={onCancel} title="Cancel">×</button>
       </div>
-
-      {/* Route buttons — always visible until saved */}
-      {!route && (
-        <div className="process-routes">
-          <button className="process-route-btn process-route-btn--task"    onClick={() => setRoute('task')}>Task</button>
-          <button className="process-route-btn process-route-btn--project" onClick={() => setRoute('project')}>Project</button>
-          <button className="process-route-btn process-route-btn--someday" onClick={() => setRoute('someday')}>Someday</button>
-          <button className="process-route-btn process-route-btn--trash"   onClick={() => handleFinish('trash')} disabled={saving}>
-            <Trash2 size={12} />
-          </button>
-        </div>
-      )}
-
-      {route === 'task' && (
-        <div className="process-detail">
-          <div className="process-inline-row">
-            <div className="pill-group">
-              {PRIORITIES.map((p) => (
-                <button key={p} type="button"
-                  className={`pill pill-priority-${p}${priority === p ? ' pill--active' : ''}`}
-                  onClick={() => setPriority(p)}
-                >{p}</button>
-              ))}
-            </div>
-            <div className="pill-group">
-              {CONTEXTS.map((c) => (
-                <button key={c} type="button"
-                  className={`pill${context === c ? ' pill--active pill-energy-deep' : ''}`}
-                  onClick={() => setContext(c)}
-                >@{c}</button>
-              ))}
-            </div>
-          </div>
-          {saveError && <div className="process-save-error">{saveError}</div>}
-          <div className="process-actions">
-            <button className="process-btn process-btn--back" onClick={() => setRoute('')}>← Back</button>
-            <button className="process-btn process-btn--save" disabled={!title.trim() || saving} onClick={() => handleFinish('task')}>
-              {saving ? 'Saving…' : 'Add to Tasks'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {route === 'project' && (
-        <div className="process-detail">
-          {saveError && <div className="process-save-error">{saveError}</div>}
-          <div className="process-actions">
-            <button className="process-btn process-btn--back" onClick={() => setRoute('')}>← Back</button>
-            <button className="process-btn process-btn--save" disabled={!title.trim() || saving} onClick={() => handleFinish('project')}>
-              {saving ? 'Saving…' : 'Create Project'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {route === 'someday' && (
-        <div className="process-detail">
-          {saveError && <div className="process-save-error">{saveError}</div>}
-          <div className="process-actions">
-            <button className="process-btn process-btn--back" onClick={() => setRoute('')}>← Back</button>
-            <button className="process-btn process-btn--save" disabled={!title.trim() || saving} onClick={() => handleFinish('someday')}>
-              {saving ? 'Saving…' : 'Save to Someday'}
-            </button>
-          </div>
-        </div>
-      )}
+      {saveError && <div className="process-save-error">{saveError}</div>}
+      <div className="process-routes">
+        <button className="process-route-btn process-route-btn--task"    disabled={saving || !title.trim()} onClick={() => handleFinish('task')}>
+          {saving ? 'Saving…' : 'Task'}
+        </button>
+        <button className="process-route-btn process-route-btn--project" disabled={saving || !title.trim()} onClick={() => handleFinish('project')}>Project</button>
+        <button className="process-route-btn process-route-btn--someday" disabled={saving || !title.trim()} onClick={() => handleFinish('someday')}>Someday</button>
+        <button className="process-route-btn process-route-btn--trash"   disabled={saving}                  onClick={() => handleFinish('trash')}>
+          <Trash2 size={12} />
+        </button>
+      </div>
     </div>
   );
 }
 
 export default function InboxView({ onInboxChange }) {
   const [items, setItems] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [capture, setCapture] = useState('');
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
@@ -151,12 +89,8 @@ export default function InboxView({ onInboxChange }) {
 
   const fetchItems = useCallback(async () => {
     try {
-      const [itemsRes, projectsRes] = await Promise.all([
-        fetch(`${API}/api/inbox`),
-        fetch(`${API}/api/projects`),
-      ]);
-      setItems(await itemsRes.json());
-      setProjects(await projectsRes.json());
+      const res = await fetch(`${API}/api/inbox`);
+      setItems(await res.json());
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }, []);
@@ -220,9 +154,7 @@ export default function InboxView({ onInboxChange }) {
           {capturing ? '…' : 'Capture'}
         </button>
       </form>
-      {captureError && (
-        <div className="capture-error">{captureError}</div>
-      )}
+      {captureError && <div className="capture-error">{captureError}</div>}
 
       <div className="inbox-meta">
         {items.length > 0
@@ -244,7 +176,7 @@ export default function InboxView({ onInboxChange }) {
           {items.map((item) => (
             <div key={item.id} className={`inbox-item${processingId === item.id ? ' inbox-item--active' : ''}`}>
               {processingId === item.id ? (
-                <ProcessPanel item={item} projects={projects} onDone={handleProcessDone} onCancel={() => setProcessingId(null)} />
+                <ProcessPanel item={item} onDone={handleProcessDone} onCancel={() => setProcessingId(null)} />
               ) : (
                 <div className="inbox-item-row">
                   <span className="inbox-item-content">{item.content}</span>
