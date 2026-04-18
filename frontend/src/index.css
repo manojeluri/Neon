@@ -2390,18 +2390,23 @@ details[open] .completed-summary::before { content: '▼  '; }
 }
 
 .ai-todo-check {
-  font-size: 0.75rem;
-  color: var(--t3);
-  flex-shrink: 0;
-  width: 14px; text-align: center;
+  font-size: 0.75rem; color: var(--t3);
+  flex-shrink: 0; width: 14px; text-align: center;
 }
-
 .ai-todo-item--added .ai-todo-check { color: var(--accent); }
 
+/* Body: title + classification tags stacked */
+.ai-todo-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
 .ai-todo-text {
-  flex: 1;
-  font-size: 0.82rem; color: var(--t1);
-  line-height: 1.4;
+  font-size: 0.84rem; color: var(--t1); line-height: 1.4;
+}
+
+.ai-todo-meta {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
 }
 
 /* Offline hint */

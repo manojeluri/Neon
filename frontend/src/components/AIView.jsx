@@ -1,5 +1,5 @@
 import { API } from '../api';
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FolderOpen, Sparkles, Plus, Check, AlertCircle } from 'lucide-react';
 
 const RECENCY_OPTIONS = [
@@ -9,36 +9,44 @@ const RECENCY_OPTIONS = [
   { label: 'All',     days: null },
 ];
 
+const PRIORITY_LABELS = { must: 'Must', should: 'Should', could: 'Could' };
+const CONTEXT_LABELS  = { computer: 'Computer', phone: 'Phone', errands: 'Errands', home: 'Home', office: 'Office' };
+
 function cutoffMs(days) {
   if (!days) return 0;
   return Date.now() - days * 24 * 60 * 60 * 1000;
 }
 
 export default function AIView() {
-  const [allFiles,    setAllFiles]    = useState([]); // { file, name, lastModified }
+  const [allFiles,    setAllFiles]    = useState([]);
   const [recencyDays, setRecencyDays] = useState(30);
   const [extracting,  setExtracting]  = useState(false);
-  const [tasks,       setTasks]       = useState([]);
+  const [tasks,       setTasks]       = useState([]);  // [{title, priority, context, project}]
   const [filesUsed,   setFilesUsed]   = useState(0);
   const [addedIds,    setAddedIds]    = useState(new Set());
   const [addingAll,   setAddingAll]   = useState(false);
   const [error,       setError]       = useState('');
+  const [projects,    setProjects]    = useState([]); // [{id, title}]
   const fileInputRef = useRef(null);
 
-  // Filter to .md files within the chosen recency window
-  const filteredFiles = allFiles.filter(
-    (f) => f.lastModified >= cutoffMs(recencyDays)
-  );
+  // Load projects on mount so we can pass them to the AI and look up IDs when saving
+  useEffect(() => {
+    fetch(`${API}/api/projects`)
+      .then(r => r.json())
+      .then(data => setProjects(Array.isArray(data) ? data.filter(p => p.status === 'active') : []))
+      .catch(() => {});
+  }, []);
+
+  const filteredFiles = allFiles.filter(f => f.lastModified >= cutoffMs(recencyDays));
 
   const handleFolderSelect = (e) => {
     const mdFiles = Array.from(e.target.files)
-      .filter((f) => f.name.toLowerCase().endsWith('.md'))
-      .map((f) => ({ file: f, name: f.name, lastModified: f.lastModified }));
+      .filter(f => f.name.toLowerCase().endsWith('.md'))
+      .map(f => ({ file: f, name: f.name, lastModified: f.lastModified }));
     setAllFiles(mdFiles);
     setTasks([]);
     setAddedIds(new Set());
     setError('');
-    // Reset input so the same folder can be re-selected
     e.target.value = '';
   };
 
@@ -50,23 +58,37 @@ export default function AIView() {
     setError('');
 
     try {
-      // Read all file contents in parallel
+      // Fetch existing tasks (inbox + someday) to send as dedup context
+      const [inboxRes, somedayRes] = await Promise.all([
+        fetch(`${API}/api/tasks/inbox`),
+        fetch(`${API}/api/tasks/someday`),
+      ]);
+      const [inbox, someday] = await Promise.all([inboxRes.json(), somedayRes.json()]);
+      const existingTasks = [
+        ...(Array.isArray(inbox)   ? inbox   : []),
+        ...(Array.isArray(someday) ? someday : []),
+      ].map(t => t.title).filter(Boolean);
+
+      // Read file contents
       const fileData = await Promise.all(
-        filteredFiles.map(
-          ({ file, name }) =>
-            new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload  = (e) => resolve({ name, content: e.target.result });
-              reader.onerror = reject;
-              reader.readAsText(file);
-            })
+        filteredFiles.map(({ file, name }) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload  = e => resolve({ name, content: e.target.result });
+            reader.onerror = reject;
+            reader.readAsText(file);
+          })
         )
       );
 
       const res = await fetch(`${API}/api/ai/extract-tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ files: fileData }),
+        body: JSON.stringify({
+          files: fileData,
+          existingTasks,
+          projects: projects.map(p => p.title),
+        }),
       });
 
       const data = await res.json();
@@ -81,15 +103,23 @@ export default function AIView() {
     }
   };
 
-  const addToInbox = async (text, idx) => {
+  // Add a single task directly to the Tasks list (not inbox) with its classified fields
+  const addTask = async (task, idx) => {
+    const project = projects.find(p => p.title === task.project);
     try {
-      const res = await fetch(`${API}/api/inbox`, {
+      const res = await fetch(`${API}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({
+          title:      task.title,
+          priority:   task.priority,
+          context:    task.context,
+          project_id: project?.id || null,
+          list_type:  'active',
+        }),
       });
-      if (!res.ok) throw new Error('Failed to add to inbox');
-      setAddedIds((prev) => new Set([...prev, idx]));
+      if (!res.ok) throw new Error('Failed to add task');
+      setAddedIds(prev => new Set([...prev, idx]));
     } catch (err) {
       setError(err.message);
     }
@@ -98,7 +128,7 @@ export default function AIView() {
   const handleAddAll = async () => {
     setAddingAll(true);
     for (let i = 0; i < tasks.length; i++) {
-      if (!addedIds.has(i)) await addToInbox(tasks[i], i);
+      if (!addedIds.has(i)) await addTask(tasks[i], i);
     }
     setAddingAll(false);
   };
@@ -114,7 +144,7 @@ export default function AIView() {
         <div className="ai-title-row">
           <span className="ai-title">Extract Tasks from Notes</span>
           <span className="ai-subtitle">
-            Select your Obsidian vault — AI scans your recent notes and surfaces open loops
+            Scans your Obsidian vault, skips what's already in NEON, and classifies each task automatically
           </span>
         </div>
       </div>
@@ -131,14 +161,9 @@ export default function AIView() {
           style={{ display: 'none' }}
           onChange={handleFolderSelect}
         />
-        <button
-          className="ai-select-btn"
-          onClick={() => fileInputRef.current?.click()}
-        >
+        <button className="ai-select-btn" onClick={() => fileInputRef.current?.click()}>
           <FolderOpen size={14} />
-          {hasFiles
-            ? `${allFiles.length} notes found — change folder`
-            : 'Select Obsidian vault folder'}
+          {hasFiles ? `${allFiles.length} notes found — change folder` : 'Select Obsidian vault folder'}
         </button>
         {hasFiles && (
           <div className="ai-file-info">
@@ -174,17 +199,16 @@ export default function AIView() {
       {/* ── Step 3: Extract ── */}
       {hasFiles && (
         <div className="ai-step">
-          <div className="ai-step-label">3 — Extract tasks</div>
+          <div className="ai-step-label">3 — Extract &amp; classify tasks</div>
           <button
             className="ai-btn ai-btn--primary"
             onClick={handleExtract}
             disabled={!hasFiltered || extracting}
           >
-            {extracting ? (
-              <><span className="ai-spinner" />Scanning {filteredFiles.length} notes…</>
-            ) : (
-              <><Sparkles size={13} style={{ marginRight: 6 }} />Extract tasks from {filteredFiles.length} notes</>
-            )}
+            {extracting
+              ? <><span className="ai-spinner" />Scanning {filteredFiles.length} notes…</>
+              : <><Sparkles size={13} style={{ marginRight: 6 }} />Extract from {filteredFiles.length} notes</>
+            }
           </button>
         </div>
       )}
@@ -202,19 +226,15 @@ export default function AIView() {
         <div className="ai-results">
           <div className="ai-results-header">
             <span className="ai-results-label">
-              {tasks.length} task{tasks.length !== 1 ? 's' : ''} found across {filesUsed} notes
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''} · {filesUsed} notes scanned
             </span>
             {unadded.length > 0 ? (
-              <button
-                className="ai-btn ai-btn--add-all"
-                onClick={handleAddAll}
-                disabled={addingAll}
-              >
-                {addingAll ? 'Adding…' : `Add all to Inbox (${unadded.length})`}
+              <button className="ai-btn ai-btn--add-all" onClick={handleAddAll} disabled={addingAll}>
+                {addingAll ? 'Adding…' : `Add all to Tasks (${unadded.length})`}
               </button>
             ) : (
               <span className="ai-all-added">
-                <Check size={12} style={{ marginRight: 4 }} />All added to Inbox
+                <Check size={12} style={{ marginRight: 4 }} />All added to Tasks
               </span>
             )}
           </div>
@@ -231,13 +251,27 @@ export default function AIView() {
                   <span className="ai-todo-check">
                     {added ? <Check size={11} /> : '◇'}
                   </span>
-                  <span className="ai-todo-text">{task}</span>
+
+                  <div className="ai-todo-body">
+                    <span className="ai-todo-text">{task.title}</span>
+                    <div className="ai-todo-meta">
+                      {task.priority !== 'should' && (
+                        <span className={`priority-badge priority-${task.priority}`}>
+                          {PRIORITY_LABELS[task.priority]}
+                        </span>
+                      )}
+                      {task.context !== 'anywhere' && (
+                        <span className="context-badge">@{task.context}</span>
+                      )}
+                      {task.project && (
+                        <span className="project-badge">{task.project}</span>
+                      )}
+                    </div>
+                  </div>
+
                   {!added && (
-                    <button
-                      className="ai-btn ai-btn--add"
-                      onClick={() => addToInbox(task, i)}
-                    >
-                      <Plus size={10} style={{ marginRight: 3 }} />Inbox
+                    <button className="ai-btn ai-btn--add" onClick={() => addTask(task, i)}>
+                      <Plus size={10} style={{ marginRight: 3 }} />Task
                     </button>
                   )}
                 </div>

@@ -327,7 +327,7 @@ function getOpenAI() {
 }
 
 app.post('/api/ai/extract-tasks', async (req, res) => {
-  const { files } = req.body;
+  const { files, existingTasks = [], projects = [] } = req.body;
   if (!Array.isArray(files) || files.length === 0) {
     return res.status(400).json({ error: 'No files provided.' });
   }
@@ -351,33 +351,54 @@ app.post('/api/ai/extract-tasks', async (req, res) => {
       return res.status(400).json({ error: 'No readable content in the provided files.' });
     }
 
+    const dedupeSection = existingTasks.length > 0
+      ? `\nTASKS ALREADY IN THE SYSTEM — do not suggest these or anything semantically identical:\n${existingTasks.map(t => `- ${t}`).join('\n')}\n`
+      : '';
+
+    const projectsSection = projects.length > 0
+      ? `\nEXISTING PROJECTS — use these exact names in the "project" field when a task clearly belongs to one, otherwise null:\n${projects.map(p => `- ${p}`).join('\n')}\n`
+      : '';
+
+    const systemPrompt = `You are a productivity assistant reading someone's personal notes.
+Extract all open loops, commitments, and things the person needs or wants to do.
+Return a JSON object with a single key "tasks" — an array of objects.
+
+Each task object must have exactly these fields:
+- "title": clear, actionable next action starting with a verb (max 100 chars)
+- "priority": "must" (urgent/critical), "should" (normal, default), or "could" (nice to have)
+- "context": where this action is best done — one of: "anywhere", "computer", "phone", "errands", "home", "office"
+- "project": exact project name from the list below if the task clearly belongs to one, otherwise null
+
+Rules:
+- Exclude vague ideas, completed items, and pure observations
+- Return 5–30 tasks, no duplicates
+- Keep titles concise and actionable${dedupeSection}${projectsSection}`;
+
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: `You are a productivity assistant reading someone's personal notes.
-Extract all open loops, commitments, and things the person needs or wants to do.
-Return a JSON object with a single key "tasks" — an array of strings.
-Rules:
-- Each task must be a clear, actionable next action starting with a verb
-- Examples: "Call dentist to schedule checkup", "Read article on sleep optimization", "Reply to John about the project deadline"
-- Exclude vague ideas, completed items, and pure observations
-- Keep each task under 100 characters
-- Return 5–30 tasks, no duplicates`,
-        },
-        {
-          role: 'user',
-          content: `Here are my recent notes:\n\n${combined}\n\nExtract actionable tasks. Return only the JSON.`,
-        },
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: `Here are my recent notes:\n\n${combined}\n\nExtract actionable tasks as JSON.` },
       ],
       response_format: { type: 'json_object' },
       temperature: 0.3,
     });
 
     const result = JSON.parse(response.choices[0].message.content);
+
+    const VALID_PRIORITIES = new Set(['must', 'should', 'could']);
+    const VALID_CONTEXTS   = new Set(['anywhere', 'computer', 'phone', 'errands', 'home', 'office']);
+    const validProjects    = new Set(projects);
+
     const tasks = Array.isArray(result.tasks)
-      ? result.tasks.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim())
+      ? result.tasks
+          .filter(t => t && typeof t.title === 'string' && t.title.trim())
+          .map(t => ({
+            title:    t.title.trim(),
+            priority: VALID_PRIORITIES.has(t.priority) ? t.priority : 'should',
+            context:  VALID_CONTEXTS.has(t.context)    ? t.context  : 'anywhere',
+            project:  (typeof t.project === 'string' && validProjects.has(t.project)) ? t.project : null,
+          }))
       : [];
 
     res.json({ tasks, files_processed: filesUsed });
