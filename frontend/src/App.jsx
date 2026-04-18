@@ -83,7 +83,7 @@ export default function App() {
           ))}
         </nav>
 
-        <div style={{ display: tab === 'inbox'    ? 'block' : 'none' }}><InboxView onInboxChange={refreshInboxCount} onTaskCreated={refreshTasks} /></div>
+        <div style={{ display: tab === 'inbox'    ? 'block' : 'none' }}><InboxView onInboxChange={(count) => setInboxCount(count)} onTaskCreated={refreshTasks} /></div>
         <div style={{ display: tab === 'today'    ? 'block' : 'none' }}><TodayView /></div>
         <div style={{ display: tab === 'tasks'    ? 'block' : 'none' }}><TasksView refreshKey={taskRefreshKey} /></div>
         <div style={{ display: tab === 'projects' ? 'block' : 'none' }}><ProjectsView /></div>

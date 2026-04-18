@@ -86,6 +86,11 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
+  // Push the live count up to App whenever items changes — no server fetch needed
+  useEffect(() => {
+    if (!loading) onInboxChange?.(items.length);
+  }, [items.length, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCapture = async (e) => {
     e.preventDefault();
     const text = capture.trim();
@@ -99,7 +104,6 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
     setCapture('');
     setCaptureError('');
     inputRef.current?.focus();
-    onInboxChange?.();
 
     try {
       const res = await fetch(`${API}/api/inbox`, {
@@ -155,14 +159,12 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
       console.error('inbox delete failed', e)
     );
     setItems((prev) => prev.filter((i) => i.id !== item.id));
-    onInboxChange?.();
     if (action === 'task') onTaskCreated?.();
   };
 
   const handleDelete = (id) => {
     // Optimistic: remove immediately, fire request in background
     setItems((prev) => prev.filter((i) => i.id !== id));
-    onInboxChange?.();
     fetch(`${API}/api/inbox/${id}`, { method: 'DELETE' }).catch((err) => {
       console.error('Delete failed, re-fetching:', err);
       fetchItems(); // restore state if it failed
