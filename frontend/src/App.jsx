@@ -80,21 +80,21 @@ export default function App() {
           ))}
         </nav>
 
-        {tab === 'inbox'    && <InboxView onInboxChange={refreshInboxCount} />}
-        {tab === 'today'    && <TodayView />}
-        {tab === 'tasks'    && <TasksView />}
-        {tab === 'projects' && <ProjectsView />}
-        {tab === 'calendar' && (
+        <div style={{ display: tab === 'inbox'    ? 'block' : 'none' }}><InboxView onInboxChange={refreshInboxCount} /></div>
+        <div style={{ display: tab === 'today'    ? 'block' : 'none' }}><TodayView /></div>
+        <div style={{ display: tab === 'tasks'    ? 'block' : 'none' }}><TasksView /></div>
+        <div style={{ display: tab === 'projects' ? 'block' : 'none' }}><ProjectsView /></div>
+        <div style={{ display: tab === 'calendar' ? 'block' : 'none' }}>
           <Calendar
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             onNavigateToDayPlanner={() => setTab('today')}
           />
-        )}
-        {tab === 'review'  && <ReviewView />}
-        {tab === 'weekly'  && <WeeklyReviewView />}
-        {tab === 'goals'   && <GoalsView />}
-        {tab === 'ai'      && <AIView />}
+        </div>
+        <div style={{ display: tab === 'review'  ? 'block' : 'none' }}><ReviewView /></div>
+        <div style={{ display: tab === 'weekly'  ? 'block' : 'none' }}><WeeklyReviewView /></div>
+        <div style={{ display: tab === 'goals'   ? 'block' : 'none' }}><GoalsView /></div>
+        <div style={{ display: tab === 'ai'      ? 'block' : 'none' }}><AIView /></div>
       </div>
     </>
   );

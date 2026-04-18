@@ -1,5 +1,5 @@
 import { API } from '../api';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import TaskCard from './TaskCard.jsx';
 import TaskForm from './TaskForm.jsx';
@@ -39,6 +39,7 @@ export default function TasksView() {
   const [activeContext, setActiveContext] = useState('anywhere');
   const [projects, setProjects] = useState([]);
   const [confirm, setConfirm] = useState(null);
+  const cacheRef = useRef({});
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -50,10 +51,20 @@ export default function TasksView() {
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
   const fetchTasks = useCallback(async () => {
-    setLoading(true);
+    const cacheKey = subtab === 'contexts' ? `contexts:${activeContext}` : subtab;
+    const cached = cacheRef.current[cacheKey];
+
+    // Show cached data instantly, skip spinner
+    if (cached) {
+      setTasks(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       let url;
-      if (subtab === 'inbox')    url = `${API}/api/tasks/inbox`;
+      if (subtab === 'inbox')         url = `${API}/api/tasks/inbox`;
       else if (subtab === 'today')    url = `${API}/api/tasks?date=${today}`;
       else if (subtab === 'tomorrow') url = `${API}/api/tasks?date=${tomorrow}`;
       else if (subtab === 'later')    url = `${API}/api/tasks/later?after=${tomorrow}`;
@@ -67,7 +78,9 @@ export default function TasksView() {
       ]);
       const tasksData = await tasksRes.json();
       const nowData = await nowRes.json();
-      setTasks(Array.isArray(tasksData) ? tasksData : []);
+      const data = Array.isArray(tasksData) ? tasksData : [];
+      cacheRef.current[cacheKey] = data;
+      setTasks(data);
       setNowTaskId(nowData ? nowData.id : null);
     } catch (err) {
       console.error(err);
@@ -133,10 +146,13 @@ export default function TasksView() {
       onConfirm: async () => {
         setConfirm(null);
         await fetch(`${API}/api/tasks/${id}`, { method: 'DELETE' });
+        invalidateCache();
         setTasks((prev) => prev.filter((t) => t.id !== id));
       },
     });
   };
+
+  const invalidateCache = () => { cacheRef.current = {}; };
 
   const addTask = async (fields) => {
     const date = subtab === 'inbox' || subtab === 'waiting' || subtab === 'someday' || subtab === 'contexts' ? null
@@ -157,6 +173,7 @@ export default function TasksView() {
     });
     if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
     const newTask = await res.json();
+    invalidateCache();
     setTasks((prev) => [...prev, newTask]);
     setShowAddForm(false);
   };
