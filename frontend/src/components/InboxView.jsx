@@ -1,40 +1,19 @@
 import { API } from '../api';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Inbox, Trash2, ArrowRight, FolderPlus, Clock, Zap } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import { Inbox, Trash2 } from 'lucide-react';
 
 const CONTEXTS = ['anywhere', 'computer', 'phone', 'errands', 'home', 'office'];
 const PRIORITIES = ['must', 'should', 'could'];
 
 function ProcessPanel({ item, projects, onDone }) {
-  const [step, setStep] = useState('actionable'); // actionable → route → detail → done
-  const [route, setRoute] = useState(''); // 'task' | 'project' | 'someday' | 'trash'
+  const [route, setRoute] = useState(''); // '' | 'task' | 'project' | 'someday'
   const [title, setTitle] = useState(item.content);
   const [context, setContext] = useState('anywhere');
   const [priority, setPriority] = useState('should');
-  const [estMinutes, setEstMinutes] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [projectTitle, setProjectTitle] = useState('');
-  const [projectPurpose, setProjectPurpose] = useState('');
-  const [projectOutcome, setProjectOutcome] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [showTwoMin, setShowTwoMin] = useState(false);
 
-  const est = parseInt(estMinutes, 10);
-
-  useEffect(() => {
-    if (est > 0 && est <= 2 && route === 'task') setShowTwoMin(true);
-    else setShowTwoMin(false);
-  }, [estMinutes, route, est]);
-
-  const handleRoute = (r) => {
-    setRoute(r);
-    if (r === 'trash') { handleFinish(r); return; }
-    setStep('detail');
-  };
-
-  const handleFinish = async (overrideRoute) => {
-    const r = overrideRoute || route;
+  const handleFinish = async (r) => {
     setSaving(true);
     setSaveError('');
     try {
@@ -49,30 +28,19 @@ function ProcessPanel({ item, projects, onDone }) {
         res = await fetch(`${API}/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: title.trim(), list_type: 'someday', priority }),
+          body: JSON.stringify({ title: title.trim(), list_type: 'someday', priority: 'could' }),
         });
       } else if (r === 'project') {
         res = await fetch(`${API}/api/projects`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: projectTitle.trim() || title.trim(),
-            purpose: projectPurpose,
-            outcome: projectOutcome,
-          }),
+          body: JSON.stringify({ title: title.trim() }),
         });
       } else if (r === 'task') {
         res = await fetch(`${API}/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: title.trim(),
-            context,
-            priority,
-            est_minutes: est || null,
-            project_id: projectId || null,
-            list_type: 'active',
-          }),
+          body: JSON.stringify({ title: title.trim(), context, priority, list_type: 'active' }),
         });
       }
 
@@ -92,178 +60,73 @@ function ProcessPanel({ item, projects, onDone }) {
 
   return (
     <div className="process-panel">
-      <div className="process-item-text">"{item.content}"</div>
+      <input
+        className="process-input process-input--title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        autoFocus
+      />
 
-      {step === 'actionable' && (
-        <div className="process-step">
-          <div className="process-question">Is this actionable?</div>
-          <div className="process-actions">
-            <button className="process-btn process-btn--yes" onClick={() => setStep('route')}>
-              <ArrowRight size={13} /> Yes, it requires action
-            </button>
-            <button className="process-btn process-btn--no" onClick={() => handleRoute('trash')}>
-              <Trash2 size={13} /> No — trash it
-            </button>
-            <button className="process-btn process-btn--someday" onClick={() => handleRoute('someday')}>
-              <Clock size={13} /> Maybe someday
-            </button>
-          </div>
+      {/* Route buttons — always visible until saved */}
+      {!route && (
+        <div className="process-routes">
+          <button className="process-route-btn process-route-btn--task"    onClick={() => setRoute('task')}>Task</button>
+          <button className="process-route-btn process-route-btn--project" onClick={() => setRoute('project')}>Project</button>
+          <button className="process-route-btn process-route-btn--someday" onClick={() => setRoute('someday')}>Someday</button>
+          <button className="process-route-btn process-route-btn--trash"   onClick={() => handleFinish('trash')} disabled={saving}>
+            <Trash2 size={12} />
+          </button>
         </div>
       )}
 
-      {step === 'route' && (
-        <div className="process-step">
-          <div className="process-question">What is it?</div>
-          <div className="process-actions">
-            <button className="process-btn process-btn--task" onClick={() => handleRoute('task')}>
-              <ArrowRight size={13} /> Single next action
-            </button>
-            <button className="process-btn process-btn--project" onClick={() => handleRoute('project')}>
-              <FolderPlus size={13} /> Multi-step project
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 'detail' && route === 'task' && (
-        <div className="process-step">
-          <div className="process-question">Define the next action</div>
-          <input
-            className="process-input"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Next physical action…"
-            autoFocus
-          />
-          {showTwoMin && (
-            <div className="two-min-rule">
-              <Zap size={11} />
-              <span>Two-minute rule — do it now instead of adding it.</span>
-              <button onClick={() => { fetch(`${API}/api/inbox/${item.id}`, { method: 'DELETE' }); onDone(); }}>
-                Done now
-              </button>
+      {route === 'task' && (
+        <div className="process-detail">
+          <div className="process-inline-row">
+            <div className="pill-group">
+              {PRIORITIES.map((p) => (
+                <button key={p} type="button"
+                  className={`pill pill-priority-${p}${priority === p ? ' pill--active' : ''}`}
+                  onClick={() => setPriority(p)}
+                >{p}</button>
+              ))}
             </div>
-          )}
-          <div className="process-row">
-            <div className="process-field">
-              <span className="process-label">Context</span>
-              <div className="pill-group">
-                {CONTEXTS.map((c) => (
-                  <button key={c} type="button"
-                    className={`pill${context === c ? ' pill--active pill-energy-deep' : ''}`}
-                    onClick={() => setContext(c)}
-                  >@{c}</button>
-                ))}
-              </div>
+            <div className="pill-group">
+              {CONTEXTS.map((c) => (
+                <button key={c} type="button"
+                  className={`pill${context === c ? ' pill--active pill-energy-deep' : ''}`}
+                  onClick={() => setContext(c)}
+                >@{c}</button>
+              ))}
             </div>
           </div>
-          <div className="process-row">
-            <div className="process-field">
-              <span className="process-label">Priority</span>
-              <div className="pill-group">
-                {PRIORITIES.map((p) => (
-                  <button key={p} type="button"
-                    className={`pill pill-priority-${p}${priority === p ? ' pill--active' : ''}`}
-                    onClick={() => setPriority(p)}
-                  >{p}</button>
-                ))}
-              </div>
-            </div>
-            <div className="process-field">
-              <span className="process-label">Est. min</span>
-              <input
-                className="process-input process-input--sm"
-                type="number" min={1} max={480}
-                value={estMinutes}
-                onChange={(e) => setEstMinutes(e.target.value)}
-                placeholder="e.g. 30"
-              />
-            </div>
-          </div>
-          {projects.length > 0 && (
-            <div className="process-field">
-              <span className="process-label">Link to project (optional)</span>
-              <select
-                className="process-select"
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-              >
-                <option value="">— No project —</option>
-                {projects.filter(p => p.status === 'active').map((p) => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
-              </select>
-            </div>
-          )}
           {saveError && <div className="process-save-error">{saveError}</div>}
-          <div className="process-hint">Task will appear in Tasks → Unscheduled</div>
           <div className="process-actions">
-            <button className="process-btn process-btn--back" onClick={() => setStep('route')}>← Back</button>
-            <button
-              className="process-btn process-btn--save"
-              disabled={!title.trim() || saving}
-              onClick={() => handleFinish()}
-            >
+            <button className="process-btn process-btn--back" onClick={() => setRoute('')}>← Back</button>
+            <button className="process-btn process-btn--save" disabled={!title.trim() || saving} onClick={() => handleFinish('task')}>
               {saving ? 'Saving…' : 'Add to Tasks'}
             </button>
           </div>
         </div>
       )}
 
-      {step === 'detail' && route === 'project' && (
-        <div className="process-step">
-          <div className="process-question">Define the project</div>
-          <input
-            className="process-input"
-            value={projectTitle || title}
-            onChange={(e) => setProjectTitle(e.target.value)}
-            placeholder="Project title…"
-            autoFocus
-          />
-          <input
-            className="process-input"
-            value={projectPurpose}
-            onChange={(e) => setProjectPurpose(e.target.value)}
-            placeholder="Why? (purpose)"
-          />
-          <input
-            className="process-input"
-            value={projectOutcome}
-            onChange={(e) => setProjectOutcome(e.target.value)}
-            placeholder="What does done look like? (outcome)"
-          />
+      {route === 'project' && (
+        <div className="process-detail">
           {saveError && <div className="process-save-error">{saveError}</div>}
           <div className="process-actions">
-            <button className="process-btn process-btn--back" onClick={() => setStep('route')}>← Back</button>
-            <button
-              className="process-btn process-btn--save"
-              disabled={!(projectTitle || title).trim() || saving}
-              onClick={() => handleFinish()}
-            >
+            <button className="process-btn process-btn--back" onClick={() => setRoute('')}>← Back</button>
+            <button className="process-btn process-btn--save" disabled={!title.trim() || saving} onClick={() => handleFinish('project')}>
               {saving ? 'Saving…' : 'Create Project'}
             </button>
           </div>
         </div>
       )}
 
-      {step === 'detail' && route === 'someday' && (
-        <div className="process-step">
-          <div className="process-question">Save to Someday/Maybe</div>
-          <input
-            className="process-input"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title…"
-            autoFocus
-          />
+      {route === 'someday' && (
+        <div className="process-detail">
           {saveError && <div className="process-save-error">{saveError}</div>}
           <div className="process-actions">
-            <button className="process-btn process-btn--back" onClick={() => setStep('actionable')}>← Back</button>
-            <button
-              className="process-btn process-btn--save"
-              disabled={!title.trim() || saving}
-              onClick={() => handleFinish()}
-            >
+            <button className="process-btn process-btn--back" onClick={() => setRoute('')}>← Back</button>
+            <button className="process-btn process-btn--save" disabled={!title.trim() || saving} onClick={() => handleFinish('someday')}>
               {saving ? 'Saving…' : 'Save to Someday'}
             </button>
           </div>
