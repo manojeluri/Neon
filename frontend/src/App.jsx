@@ -23,7 +23,7 @@ function formatDate(dateStr) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState('today');
+  const [tab, setTab] = useState('inbox');
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [inboxCount, setInboxCount] = useState(0);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
