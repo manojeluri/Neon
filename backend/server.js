@@ -433,6 +433,9 @@ app.get('/api/gcal/status', async (req, res) => {
 
 // GET /api/gcal/auth — redirect to Google consent screen
 app.get('/api/gcal/auth', (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(500).json({ error: 'GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is not set on the server.' });
+  }
   const oauth2Client = getOAuthClient();
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
