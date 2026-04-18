@@ -5,7 +5,7 @@ import { Inbox, Trash2 } from 'lucide-react';
 const CONTEXTS = ['anywhere', 'computer', 'phone', 'errands', 'home', 'office'];
 const PRIORITIES = ['must', 'should', 'could'];
 
-function ProcessPanel({ item, projects, onDone }) {
+function ProcessPanel({ item, projects, onDone, onCancel }) {
   const [route, setRoute] = useState(''); // '' | 'task' | 'project' | 'someday'
   const [title, setTitle] = useState(item.content);
   const [context, setContext] = useState('anywhere');
@@ -60,12 +60,15 @@ function ProcessPanel({ item, projects, onDone }) {
 
   return (
     <div className="process-panel">
-      <input
-        className="process-input process-input--title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        autoFocus
-      />
+      <div className="process-panel-header">
+        <input
+          className="process-input process-input--title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          autoFocus
+        />
+        <button className="process-cancel-btn" onClick={onCancel} title="Cancel">×</button>
+      </div>
 
       {/* Route buttons — always visible until saved */}
       {!route && (
@@ -241,7 +244,7 @@ export default function InboxView({ onInboxChange }) {
           {items.map((item) => (
             <div key={item.id} className={`inbox-item${processingId === item.id ? ' inbox-item--active' : ''}`}>
               {processingId === item.id ? (
-                <ProcessPanel item={item} projects={projects} onDone={handleProcessDone} />
+                <ProcessPanel item={item} projects={projects} onDone={handleProcessDone} onCancel={() => setProcessingId(null)} />
               ) : (
                 <div className="inbox-item-row">
                   <span className="inbox-item-content">{item.content}</span>
