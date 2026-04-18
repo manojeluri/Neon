@@ -93,7 +93,16 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
     const text = capture.trim();
     if (!text) return;
     setCapturing(true);
+
+    // Optimistic update — add immediately, reconcile after server responds
+    const tempId = `temp-${Date.now()}`;
+    const tempItem = { id: tempId, content: text };
+    setItems((prev) => [tempItem, ...prev]);
+    setCapture('');
     setCaptureError('');
+    inputRef.current?.focus();
+    onInboxChange?.();
+
     try {
       const res = await fetch(`${API}/api/inbox`, {
         method: 'POST',
@@ -105,11 +114,12 @@ export default function InboxView({ onInboxChange, onTaskCreated }) {
         throw new Error(d.error || `Server error ${res.status}`);
       }
       const newItem = await res.json();
-      setItems((prev) => [newItem, ...prev]);
-      setCapture('');
-      onInboxChange?.();
-      inputRef.current?.focus();
+      // Replace temp item with the real one from the server
+      setItems((prev) => prev.map((i) => (i.id === tempId ? newItem : i)));
     } catch (err) {
+      // Roll back the optimistic item and restore the input
+      setItems((prev) => prev.filter((i) => i.id !== tempId));
+      setCapture(text);
       setCaptureError(err.message || 'Failed to capture. Try again.');
     } finally {
       setCapturing(false);
