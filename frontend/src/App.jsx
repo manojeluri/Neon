@@ -60,13 +60,6 @@ export default function App() {
         <div className="bg-grid-horizon" />
       </div>
       <div className="app">
-        <header className="app-header">
-          <div className="app-header-left">
-            <h1>NEON</h1>
-            <div className="date-label">{formatDate(today)}</div>
-          </div>
-        </header>
-
         <nav className="tab-nav" aria-label="Main navigation">
           {TABS.map(({ id, label, icon: Icon, badge }) => (
             <button
