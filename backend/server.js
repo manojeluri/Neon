@@ -18,6 +18,8 @@ const {
   getGcalTokens, upsertGcalTokens, deleteGcalTokens,
 } = require('./db');
 
+const jwt = require('jsonwebtoken');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -33,6 +35,31 @@ app.use(cors({
   },
 }));
 app.use(express.json({ limit: '10mb' })); // large enough for a batch of vault files
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+const PUBLIC_PATHS = ['/api/auth/login', '/api/health', '/api/gcal/auth', '/api/gcal/callback'];
+
+app.use((req, res, next) => {
+  if (PUBLIC_PATHS.some(p => req.path.startsWith(p))) return next();
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    jwt.verify(token, process.env.JWT_SECRET || 'fallback-dev-secret');
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { password } = req.body;
+  if (!password || password !== process.env.SESSION_PASSWORD) {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+  const token = jwt.sign({ user: 'owner' }, process.env.JWT_SECRET || 'fallback-dev-secret', { expiresIn: '30d' });
+  res.json({ token });
+});
 
 // ─── Health check ────────────────────────────────────────────────────────────
 

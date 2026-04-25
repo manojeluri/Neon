@@ -1,6 +1,6 @@
 import { API } from './api';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sun, CheckSquare, CalendarDays, BarChart2, Inbox, FolderKanban, Target, RefreshCw, Sparkles } from 'lucide-react';
+import { Sun, CheckSquare, CalendarDays, BarChart2, Inbox, FolderKanban, Target, RefreshCw, Sparkles, LogOut } from 'lucide-react';
 import Calendar from './components/Calendar.jsx';
 import TodayView from './components/TodayView.jsx';
 import TasksView from './components/TasksView.jsx';
@@ -10,6 +10,7 @@ import ProjectsView from './components/ProjectsView.jsx';
 import WeeklyReviewView from './components/WeeklyReviewView.jsx';
 import GoalsView from './components/GoalsView.jsx';
 import AIView from './components/AIView.jsx';
+import LoginScreen from './components/LoginScreen.jsx';
 
 function getTodayStr() {
   const d = new Date();
@@ -23,10 +24,20 @@ function formatDate(dateStr) {
 }
 
 export default function App() {
+  const [token, setToken] = useState(() => localStorage.getItem('auth_token'));
   const [tab, setTab] = useState('inbox');
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [inboxCount, setInboxCount] = useState(0);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
+
+  function logout() {
+    localStorage.removeItem('auth_token');
+    setToken(null);
+  }
+
+  if (!token) {
+    return <LoginScreen onLogin={setToken} />;
+  }
 
   const refreshTasks = () => setTaskRefreshKey((k) => k + 1);
 
@@ -74,6 +85,17 @@ export default function App() {
               </span>
             </button>
           ))}
+          <button
+            className="tab-btn"
+            onClick={logout}
+            title="Log out"
+            style={{ marginLeft: 'auto' }}
+          >
+            <span className="tab-btn-inner">
+              <LogOut size={11} strokeWidth={2} />
+              Logout
+            </span>
+          </button>
         </nav>
 
         <div style={{ display: tab === 'inbox'    ? 'block' : 'none' }}><InboxView onInboxChange={(count) => setInboxCount(count)} onTaskCreated={refreshTasks} /></div>
