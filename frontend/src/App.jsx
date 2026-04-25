@@ -30,17 +30,7 @@ export default function App() {
   const [inboxCount, setInboxCount] = useState(0);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
 
-  function logout() {
-    localStorage.removeItem('auth_token');
-    setToken(null);
-  }
-
-  if (!token) {
-    return <LoginScreen onLogin={setToken} />;
-  }
-
   const refreshTasks = () => setTaskRefreshKey((k) => k + 1);
-
   const today = getTodayStr();
 
   const refreshInboxCount = useCallback(async () => {
@@ -51,7 +41,18 @@ export default function App() {
     } catch (err) { console.error(err); }
   }, []);
 
-  useEffect(() => { refreshInboxCount(); }, [refreshInboxCount]);
+  useEffect(() => {
+    if (token) refreshInboxCount();
+  }, [token, refreshInboxCount]);
+
+  function logout() {
+    localStorage.removeItem('auth_token');
+    setToken(null);
+  }
+
+  if (!token) {
+    return <LoginScreen onLogin={setToken} />;
+  }
 
   const TABS = [
     { id: 'inbox',    label: 'Inbox',    icon: Inbox,        badge: inboxCount },
