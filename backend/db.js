@@ -66,6 +66,11 @@ const SCHEMA = `
     expiry_date INTEGER,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `;
 
 // Column migrations — silent on "duplicate column" errors
@@ -81,6 +86,8 @@ const MIGRATIONS = [
   "ALTER TABLE tasks ADD COLUMN project_id INTEGER",
   "ALTER TABLE tasks ADD COLUMN list_type TEXT NOT NULL DEFAULT 'active'",
   "ALTER TABLE tasks ADD COLUMN waiting_for TEXT",
+  // Seed default password hash (bcrypt of initial password; user can update via app)
+  "INSERT OR IGNORE INTO settings (key, value) VALUES ('password_hash', '$2b$10$APWTemkY6.79ToeRx8UZE.iYjEqv10Lg2fmd4uD1rrnAL.bcsDzGy')",
 ];
 
 const ready = (async () => {
@@ -450,6 +457,21 @@ async function deleteGcalTokens() {
   await run('DELETE FROM gcal_tokens WHERE id = 1');
 }
 
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+async function getSettingValue(key) {
+  const row = await first('SELECT value FROM settings WHERE key = ?', [key]);
+  return row?.value ?? null;
+}
+
+async function setSettingValue(key, value) {
+  await run(
+    `INSERT INTO settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value]
+  );
+}
+
 module.exports = {
   ready,
   getTasksForDate, getInboxTasks, getTasksAfterDate, getNowTask,
@@ -462,4 +484,5 @@ module.exports = {
   getReviewForDate, upsertReview,
   getMonthSummary,
   getGcalTokens, upsertGcalTokens, deleteGcalTokens,
+  getSettingValue, setSettingValue,
 };

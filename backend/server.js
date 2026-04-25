@@ -16,9 +16,11 @@ const {
   getReviewForDate, upsertReview,
   getMonthSummary,
   getGcalTokens, upsertGcalTokens, deleteGcalTokens,
+  getSettingValue, setSettingValue,
 } = require('./db');
 
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,13 +54,19 @@ app.use((req, res, next) => {
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { password } = req.body;
-  if (!password || password !== process.env.SESSION_PASSWORD) {
-    return res.status(401).json({ error: 'Invalid password' });
+  if (!password) return res.status(401).json({ error: 'Invalid password' });
+  try {
+    const hash = await getSettingValue('password_hash');
+    if (!hash || !bcrypt.compareSync(password, hash)) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+    const token = jwt.sign({ user: 'owner' }, process.env.JWT_SECRET || 'fallback-dev-secret', { expiresIn: '30d' });
+    res.json({ token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  const token = jwt.sign({ user: 'owner' }, process.env.JWT_SECRET || 'fallback-dev-secret', { expiresIn: '30d' });
-  res.json({ token });
 });
 
 // ─── Health check ────────────────────────────────────────────────────────────
