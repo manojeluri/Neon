@@ -868,9 +868,9 @@ body {
 
 /* Actions: always faintly visible, full opacity on hover/active states */
 .task-card-actions {
-  display: flex; align-items: center; gap: 2px;
+  display: flex; align-items: center; gap: 3px;
   flex-shrink: 0;
-  opacity: 0.2;
+  opacity: 0.45;
   transition: opacity var(--ease);
 }
 .task-card:hover .task-card-actions,
@@ -881,15 +881,15 @@ body {
 ═══════════════════════════════════════════════════════ */
 .btn-icon {
   background: transparent; border: none; cursor: pointer;
-  color: var(--t3); font-size: 0.78rem;
-  width: 23px; height: 23px;
+  color: rgba(255, 180, 120, 0.75); font-size: 0.78rem;
+  width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center;
   border-radius: var(--r-xs);
   transition: color var(--ease), background var(--ease), box-shadow var(--ease);
 }
 
-.btn-icon:hover { color: var(--t2); background: rgba(255,110,0,0.08); }
-.btn-icon--danger:hover { color: var(--danger); box-shadow: 0 0 6px rgba(255,61,90,0.2); }
+.btn-icon:hover { color: var(--t1); background: rgba(255,110,0,0.14); }
+.btn-icon--danger:hover { color: var(--danger); background: rgba(255,61,90,0.10); box-shadow: 0 0 6px rgba(255,61,90,0.2); }
 .btn-icon--now-active  { color: var(--accent) !important; opacity: 1 !important; text-shadow: 0 0 6px rgba(255,110,0,0.6); }
 .btn-icon--top3-active { color: var(--warning) !important; opacity: 1 !important; text-shadow: 0 0 6px rgba(255,171,0,0.5); }
 

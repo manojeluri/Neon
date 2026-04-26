@@ -89,14 +89,14 @@ export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId
           onClick={() => onUpdate(task.id, { is_now: isNow ? 0 : 1 })}
           title={isNow ? 'Clear focus' : 'Focus now'}
         >
-          <Play size={11} />
+          <Play size={13} />
         </button>
         <button
           className={`btn-icon${task.is_top3 ? ' btn-icon--top3-active' : ''}`}
           onClick={() => onUpdate(task.id, { is_top3: task.is_top3 ? 0 : 1 })}
           title={task.is_top3 ? 'Remove from Top 3' : 'Add to Top 3'}
         >
-          <Star size={11} />
+          <Star size={13} />
         </button>
         {task.date !== today && (
           <button
@@ -104,14 +104,14 @@ export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId
             onClick={() => onUpdate(task.id, { date: today, list_type: 'active' })}
             title="Schedule for today"
           >
-            <CalendarPlus size={11} />
+            <CalendarPlus size={13} />
           </button>
         )}
         <button className="btn-icon" onClick={() => setEditing(true)} title="Edit">
-          <Pencil size={11} />
+          <Pencil size={13} />
         </button>
         <button className="btn-icon btn-icon--danger" onClick={onDelete} title="Delete">
-          <Trash2 size={11} />
+          <Trash2 size={13} />
         </button>
       </div>
     </div>
