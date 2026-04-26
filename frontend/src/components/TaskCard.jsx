@@ -22,7 +22,7 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId, showDate, dragHandlers, isDragOver }) {
+export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId, showDate, dragListeners, dragAttributes }) {
   const [editing, setEditing] = useState(false);
   const today = getTodayStr();
 
@@ -41,22 +41,14 @@ export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId
   const isNow = task.id === nowTaskId || task.is_now === 1;
   const time = formatTime(task.time);
 
-  // Only show badges that carry signal — hide defaults ('should', 'light', 'anywhere')
   const showPriority = task.priority && task.priority !== 'should';
   const showEnergy   = task.energy   && task.energy   !== 'light';
   const showContext  = task.context  && task.context  !== 'anywhere';
 
   return (
-    <div
-      className={`task-card${task.completed ? ' task-card--done' : ''}${isNow ? ' task-card--now' : ''}${task.list_type === 'waiting' ? ' task-card--waiting' : ''}${isDragOver ? ' task-card--drag-over' : ''}`}
-      draggable={!!dragHandlers}
-      onDragStart={dragHandlers ? (e) => { e.dataTransfer.effectAllowed = 'move'; dragHandlers.onDragStart(task.id); } : undefined}
-      onDragOver={dragHandlers ? (e) => dragHandlers.onDragOver(e, task.id) : undefined}
-      onDrop={dragHandlers ? (e) => dragHandlers.onDrop(e, task.id) : undefined}
-      onDragEnd={dragHandlers ? dragHandlers.onDragEnd : undefined}
-    >
-      {dragHandlers && (
-        <div className="drag-handle" title="Drag to reorder">
+    <div className={`task-card${task.completed ? ' task-card--done' : ''}${isNow ? ' task-card--now' : ''}${task.list_type === 'waiting' ? ' task-card--waiting' : ''}`}>
+      {dragListeners && (
+        <div className="drag-handle" title="Drag to reorder" {...dragAttributes} {...dragListeners}>
           <GripVertical size={13} />
         </div>
       )}

@@ -3,6 +3,30 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import TaskCard from './TaskCard.jsx';
 import TaskForm from './TaskForm.jsx';
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableTaskCard({ task, ...props }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: transition || 'transform 220ms cubic-bezier(0.25, 1, 0.5, 1)',
+        opacity: isDragging ? 0 : 1,
+        position: 'relative',
+      }}
+    >
+      <TaskCard task={task} {...props} dragListeners={listeners} dragAttributes={attributes} />
+    </div>
+  );
+}
 
 function getTodayStr() {
   const d = new Date();
@@ -39,9 +63,12 @@ export default function TasksView({ refreshKey = 0 }) {
   const [activeContext, setActiveContext] = useState('anywhere');
   const [projects, setProjects] = useState([]);
   const [confirm, setConfirm] = useState(null);
+  const [activeTask, setActiveTask] = useState(null);
   const cacheRef = useRef({});
-  const dragIdRef = useRef(null);
-  const [dragOverId, setDragOverId] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -163,37 +190,25 @@ export default function TasksView({ refreshKey = 0 }) {
 
   const invalidateCache = () => { cacheRef.current = {}; };
 
-  const dragHandlers = {
-    onDragStart: (taskId) => { dragIdRef.current = taskId; },
-    onDragOver: (e, taskId) => {
-      e.preventDefault();
-      if (dragOverId !== taskId) setDragOverId(taskId);
-    },
-    onDrop: async (e, targetId) => {
-      e.preventDefault();
-      const dragId = dragIdRef.current;
-      setDragOverId(null);
-      dragIdRef.current = null;
-      if (!dragId || dragId === targetId) return;
+  const handleDragStart = ({ active }) => {
+    setActiveTask(incomplete.find((t) => t.id === active.id) || null);
+  };
 
-      const newIncomplete = [...incomplete];
-      const fromIdx = newIncomplete.findIndex((t) => t.id === dragId);
-      const toIdx   = newIncomplete.findIndex((t) => t.id === targetId);
-      const [moved] = newIncomplete.splice(fromIdx, 1);
-      newIncomplete.splice(toIdx, 0, moved);
-
-      setTasks([...newIncomplete, ...completed]);
-      invalidateCache();
-
-      try {
-        await fetch(`${API}/api/tasks/reorder`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ordered_ids: newIncomplete.map((t) => t.id) }),
-        });
-      } catch { fetchTasks(); }
-    },
-    onDragEnd: () => { setDragOverId(null); dragIdRef.current = null; },
+  const handleDragEnd = async ({ active, over }) => {
+    setActiveTask(null);
+    if (!over || active.id === over.id) return;
+    const oldIdx = incomplete.findIndex((t) => t.id === active.id);
+    const newIdx = incomplete.findIndex((t) => t.id === over.id);
+    const reordered = arrayMove(incomplete, oldIdx, newIdx);
+    setTasks([...reordered, ...completed]);
+    invalidateCache();
+    try {
+      await fetch(`${API}/api/tasks/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ordered_ids: reordered.map((t) => t.id) }),
+      });
+    } catch { fetchTasks(); }
   };
 
   const addTask = async (fields) => {
@@ -299,21 +314,42 @@ export default function TasksView({ refreshKey = 0 }) {
           )}
 
           {incomplete.length > 0 && (
-            <div className="task-list" style={{ marginTop: '1rem' }}>
-              {incomplete.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  nowTaskId={nowTaskId}
-                  showDate={subtab === 'later' || subtab === 'contexts'}
-                  onToggle={() => toggleTask(task)}
-                  onUpdate={updateTask}
-                  onDelete={() => deleteTask(task.id)}
-                  dragHandlers={dragHandlers}
-                  isDragOver={dragOverId === task.id}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={incomplete.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                <div className="task-list" style={{ marginTop: '1rem' }}>
+                  {incomplete.map((task) => (
+                    <SortableTaskCard
+                      key={task.id}
+                      task={task}
+                      nowTaskId={nowTaskId}
+                      showDate={subtab === 'later' || subtab === 'contexts'}
+                      onToggle={() => toggleTask(task)}
+                      onUpdate={updateTask}
+                      onDelete={() => deleteTask(task.id)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+              <DragOverlay dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+                {activeTask && (
+                  <div className="task-card-drag-overlay">
+                    <TaskCard
+                      task={activeTask}
+                      nowTaskId={nowTaskId}
+                      showDate={subtab === 'later' || subtab === 'contexts'}
+                      onToggle={() => {}}
+                      onUpdate={() => {}}
+                      onDelete={() => {}}
+                    />
+                  </div>
+                )}
+              </DragOverlay>
+            </DndContext>
           )}
 
           {completed.length > 0 && (
