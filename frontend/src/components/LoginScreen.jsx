@@ -36,7 +36,7 @@ export default function LoginScreen({ onLogin }) {
       <div style={styles.card}>
         <div style={styles.logoRow}>
           <div style={styles.logoMark} />
-          <span style={styles.logoText}>DISCIPLINE</span>
+          <span style={styles.logoText}>NEON</span>
         </div>
         <p style={styles.subtitle}>Enter your password to continue</p>
         <form onSubmit={handleSubmit} style={styles.form}>
