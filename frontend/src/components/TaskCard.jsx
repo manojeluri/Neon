@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, Pencil, Trash2, CalendarPlus } from 'lucide-react';
+import { Star, Pencil, Trash2, CalendarPlus, GripVertical } from 'lucide-react';
 import TaskForm from './TaskForm.jsx';
 
 const PRIORITY_LABELS = { must: 'Must', could: 'Could' }; // 'should' is default — no badge needed
@@ -22,7 +22,7 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId, showDate }) {
+export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId, showDate, dragHandlers, isDragOver }) {
   const [editing, setEditing] = useState(false);
   const today = getTodayStr();
 
@@ -47,7 +47,19 @@ export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId
   const showContext  = task.context  && task.context  !== 'anywhere';
 
   return (
-    <div className={`task-card${task.completed ? ' task-card--done' : ''}${isNow ? ' task-card--now' : ''}${task.list_type === 'waiting' ? ' task-card--waiting' : ''}`}>
+    <div
+      className={`task-card${task.completed ? ' task-card--done' : ''}${isNow ? ' task-card--now' : ''}${task.list_type === 'waiting' ? ' task-card--waiting' : ''}${isDragOver ? ' task-card--drag-over' : ''}`}
+      draggable={!!dragHandlers}
+      onDragStart={dragHandlers ? (e) => { e.dataTransfer.effectAllowed = 'move'; dragHandlers.onDragStart(task.id); } : undefined}
+      onDragOver={dragHandlers ? (e) => dragHandlers.onDragOver(e, task.id) : undefined}
+      onDrop={dragHandlers ? (e) => dragHandlers.onDrop(e, task.id) : undefined}
+      onDragEnd={dragHandlers ? dragHandlers.onDragEnd : undefined}
+    >
+      {dragHandlers && (
+        <div className="drag-handle" title="Drag to reorder">
+          <GripVertical size={13} />
+        </div>
+      )}
       <button
         className={`btn-toggle btn-toggle--sm${task.completed ? ' checked' : ''}`}
         onClick={onToggle}

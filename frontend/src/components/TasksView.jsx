@@ -40,6 +40,8 @@ export default function TasksView({ refreshKey = 0 }) {
   const [projects, setProjects] = useState([]);
   const [confirm, setConfirm] = useState(null);
   const cacheRef = useRef({});
+  const dragIdRef = useRef(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -161,6 +163,39 @@ export default function TasksView({ refreshKey = 0 }) {
 
   const invalidateCache = () => { cacheRef.current = {}; };
 
+  const dragHandlers = {
+    onDragStart: (taskId) => { dragIdRef.current = taskId; },
+    onDragOver: (e, taskId) => {
+      e.preventDefault();
+      if (dragOverId !== taskId) setDragOverId(taskId);
+    },
+    onDrop: async (e, targetId) => {
+      e.preventDefault();
+      const dragId = dragIdRef.current;
+      setDragOverId(null);
+      dragIdRef.current = null;
+      if (!dragId || dragId === targetId) return;
+
+      const newIncomplete = [...incomplete];
+      const fromIdx = newIncomplete.findIndex((t) => t.id === dragId);
+      const toIdx   = newIncomplete.findIndex((t) => t.id === targetId);
+      const [moved] = newIncomplete.splice(fromIdx, 1);
+      newIncomplete.splice(toIdx, 0, moved);
+
+      setTasks([...newIncomplete, ...completed]);
+      invalidateCache();
+
+      try {
+        await fetch(`${API}/api/tasks/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ordered_ids: newIncomplete.map((t) => t.id) }),
+        });
+      } catch { fetchTasks(); }
+    },
+    onDragEnd: () => { setDragOverId(null); dragIdRef.current = null; },
+  };
+
   const addTask = async (fields) => {
     const date = subtab === 'inbox' || subtab === 'waiting' || subtab === 'someday' || subtab === 'contexts' ? null
       : subtab === 'today' ? today
@@ -274,6 +309,8 @@ export default function TasksView({ refreshKey = 0 }) {
                   onToggle={() => toggleTask(task)}
                   onUpdate={updateTask}
                   onDelete={() => deleteTask(task.id)}
+                  dragHandlers={dragHandlers}
+                  isDragOver={dragOverId === task.id}
                 />
               ))}
             </div>

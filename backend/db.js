@@ -88,6 +88,7 @@ const MIGRATIONS = [
   "ALTER TABLE tasks ADD COLUMN waiting_for TEXT",
   // Seed default password hash (bcrypt of initial password; user can update via app)
   "INSERT OR IGNORE INTO settings (key, value) VALUES ('password_hash', '$2b$10$APWTemkY6.79ToeRx8UZE.iYjEqv10Lg2fmd4uD1rrnAL.bcsDzGy')",
+  "ALTER TABLE tasks ADD COLUMN position INTEGER",
 ];
 
 const ready = (async () => {
@@ -130,7 +131,8 @@ async function getTasksForDate(date) {
     `SELECT t.*, p.title as project_title FROM tasks t
      LEFT JOIN projects p ON p.id = t.project_id
      WHERE t.date = ?
-     ORDER BY t.is_top3 DESC,
+     ORDER BY COALESCE(t.position, 999999) ASC,
+              t.is_top3 DESC,
               CASE WHEN t.time IS NULL OR t.time = '' THEN 1 ELSE 0 END,
               t.time ASC, t.id ASC`,
     [date]
@@ -142,7 +144,7 @@ async function getInboxTasks() {
     `SELECT t.*, p.title as project_title FROM tasks t
      LEFT JOIN projects p ON p.id = t.project_id
      WHERE (t.date IS NULL OR t.date = '') AND t.completed = 0 AND t.list_type = 'active'
-     ORDER BY t.priority ASC, t.id ASC`
+     ORDER BY COALESCE(t.position, 999999) ASC, t.id ASC`
   );
 }
 
@@ -152,6 +154,7 @@ async function getTasksAfterDate(date) {
      LEFT JOIN projects p ON p.id = t.project_id
      WHERE t.date > ? AND t.completed = 0
      ORDER BY t.date ASC,
+              COALESCE(t.position, 999999) ASC,
               CASE WHEN t.time IS NULL OR t.time = '' THEN 1 ELSE 0 END,
               t.time ASC, t.id ASC`,
     [date]
@@ -167,7 +170,7 @@ async function getWaitingTasks() {
     `SELECT t.*, p.title as project_title FROM tasks t
      LEFT JOIN projects p ON p.id = t.project_id
      WHERE t.list_type = 'waiting' AND t.completed = 0
-     ORDER BY t.created_at ASC`
+     ORDER BY COALESCE(t.position, 999999) ASC, t.created_at ASC`
   );
 }
 
@@ -176,7 +179,7 @@ async function getSomedayTasks() {
     `SELECT t.*, p.title as project_title FROM tasks t
      LEFT JOIN projects p ON p.id = t.project_id
      WHERE t.list_type = 'someday' AND t.completed = 0
-     ORDER BY t.created_at ASC`
+     ORDER BY COALESCE(t.position, 999999) ASC, t.created_at ASC`
   );
 }
 
@@ -185,7 +188,7 @@ async function getTasksByContext(context) {
     `SELECT t.*, p.title as project_title FROM tasks t
      LEFT JOIN projects p ON p.id = t.project_id
      WHERE t.context = ? AND t.list_type = 'active' AND t.completed = 0
-     ORDER BY t.priority ASC, t.created_at ASC`,
+     ORDER BY COALESCE(t.position, 999999) ASC, t.created_at ASC`,
     [context]
   );
 }
@@ -457,6 +460,15 @@ async function deleteGcalTokens() {
   await run('DELETE FROM gcal_tokens WHERE id = 1');
 }
 
+async function reorderTasks(orderedIds) {
+  if (!orderedIds.length) return;
+  const statements = orderedIds.map((id, index) => ({
+    sql: 'UPDATE tasks SET position = ? WHERE id = ?',
+    args: [index, id],
+  }));
+  await client.batch(statements, 'write');
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 async function getSettingValue(key) {
@@ -485,4 +497,5 @@ module.exports = {
   getMonthSummary,
   getGcalTokens, upsertGcalTokens, deleteGcalTokens,
   getSettingValue, setSettingValue,
+  reorderTasks,
 };

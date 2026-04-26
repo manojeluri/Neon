@@ -17,6 +17,7 @@ const {
   getMonthSummary,
   getGcalTokens, upsertGcalTokens, deleteGcalTokens,
   getSettingValue, setSettingValue,
+  reorderTasks,
 } = require('./db');
 
 const jwt = require('jsonwebtoken');
@@ -293,6 +294,15 @@ app.put('/api/tasks/:id', async (req, res) => {
     }
 
     res.json(await updateTask(id, fields));
+  } catch (err) { res.status(500).json({ error: err?.message || String(err) }); }
+});
+
+app.put('/api/tasks/reorder', async (req, res) => {
+  try {
+    const { ordered_ids } = req.body;
+    if (!Array.isArray(ordered_ids)) return res.status(400).json({ error: 'ordered_ids must be an array' });
+    await reorderTasks(ordered_ids.map(Number));
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err?.message || String(err) }); }
 });
 
