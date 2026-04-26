@@ -240,6 +240,23 @@ export default function TasksView({ refreshKey = 0 }) {
         <div className="loading"><div className="spinner" /><div>Loading…</div></div>
       ) : (
         <>
+          {showAddForm ? (
+            <div className="task-form-wrapper" style={{ marginTop: '1rem' }}>
+              <TaskForm
+                defaultDate={defaultDate}
+                defaultListType={subtab === 'waiting' ? 'waiting' : subtab === 'someday' ? 'someday' : 'active'}
+                defaultContext={subtab === 'contexts' ? activeContext : undefined}
+                projects={projects}
+                onSave={addTask}
+                onCancel={() => setShowAddForm(false)}
+              />
+            </div>
+          ) : (
+            <button className="btn-add-task" onClick={() => setShowAddForm(true)}>
+              <span>+</span> Add task
+            </button>
+          )}
+
           {incomplete.length === 0 && completed.length === 0 && !showAddForm && (
             <div className="planner-empty" style={{ marginTop: '1.5rem' }}>
               {emptyMessages[subtab] || 'No tasks.'}
@@ -281,23 +298,6 @@ export default function TasksView({ refreshKey = 0 }) {
                 ))}
               </div>
             </details>
-          )}
-
-          {showAddForm ? (
-            <div className="task-form-wrapper" style={{ marginTop: '1rem' }}>
-              <TaskForm
-                defaultDate={defaultDate}
-                defaultListType={subtab === 'waiting' ? 'waiting' : subtab === 'someday' ? 'someday' : 'active'}
-                defaultContext={subtab === 'contexts' ? activeContext : undefined}
-                projects={projects}
-                onSave={addTask}
-                onCancel={() => setShowAddForm(false)}
-              />
-            </div>
-          ) : (
-            <button className="btn-add-task" onClick={() => setShowAddForm(true)}>
-              <span>+</span> Add task
-            </button>
           )}
         </>
       )}
