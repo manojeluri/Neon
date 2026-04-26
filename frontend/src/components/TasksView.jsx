@@ -6,6 +6,7 @@ import TaskForm from './TaskForm.jsx';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay,
 } from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
 } from '@dnd-kit/sortable';
@@ -317,6 +318,7 @@ export default function TasksView({ refreshKey = 0 }) {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
