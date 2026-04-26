@@ -14,7 +14,6 @@ import { CSS } from '@dnd-kit/utilities';
 
 function SortableTaskCard({ task, ...props }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
-  // Zero out x so the item never drifts horizontally — vertical movement only
   const verticalTransform = transform ? { ...transform, x: 0 } : null;
   return (
     <div
@@ -37,36 +36,25 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function addDays(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 const SUBTABS = [
-  { id: 'inbox',    label: 'Unscheduled' },
-  { id: 'today',    label: 'Today' },
-  { id: 'tomorrow', label: 'Tomorrow' },
-  { id: 'later',    label: 'Later' },
-  { id: 'waiting',  label: 'Waiting For' },
-  { id: 'someday',  label: 'Someday' },
-  { id: 'contexts', label: 'Contexts' },
+  { id: 'active',  label: 'Active' },
+  { id: 'waiting', label: 'Waiting' },
+  { id: 'someday', label: 'Someday' },
 ];
 
-const CONTEXTS = ['anywhere', 'computer', 'phone', 'errands', 'home', 'office'];
+const CONTEXTS = ['computer', 'phone', 'errands', 'home', 'office'];
 
 export default function TasksView({ refreshKey = 0 }) {
   const today = getTodayStr();
-  const tomorrow = addDays(today, 1);
 
-  const [subtab, setSubtab] = useState('inbox');
-  const [tasks, setTasks] = useState([]);
-  const [nowTaskId, setNowTaskId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [activeContext, setActiveContext] = useState('anywhere');
-  const [projects, setProjects] = useState([]);
-  const [confirm, setConfirm] = useState(null);
+  const [subtab, setSubtab]               = useState('active');
+  const [tasks, setTasks]                 = useState([]);
+  const [nowTaskId, setNowTaskId]         = useState(null);
+  const [loading, setLoading]             = useState(true);
+  const [showAddForm, setShowAddForm]     = useState(false);
+  const [contextFilter, setContextFilter] = useState('all');
+  const [projects, setProjects]           = useState([]);
+  const [confirm, setConfirm]             = useState(null);
   const cacheRef = useRef({});
 
   const sensors = useSensors(
@@ -83,55 +71,32 @@ export default function TasksView({ refreshKey = 0 }) {
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
   const fetchTasks = useCallback(async () => {
-    const cacheKey = subtab === 'contexts' ? `contexts:${activeContext}` : subtab;
-    const cached = cacheRef.current[cacheKey];
-
-    // Show cached data instantly, skip spinner
-    if (cached) {
-      setTasks(cached);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-
+    const cached = cacheRef.current[subtab];
+    if (cached) { setTasks(cached); setLoading(false); } else { setLoading(true); }
     try {
-      let url;
-      if (subtab === 'inbox')         url = `${API}/api/tasks/inbox`;
-      else if (subtab === 'today')    url = `${API}/api/tasks?date=${today}`;
-      else if (subtab === 'tomorrow') url = `${API}/api/tasks?date=${tomorrow}`;
-      else if (subtab === 'later')    url = `${API}/api/tasks/later?after=${tomorrow}`;
-      else if (subtab === 'waiting')  url = `${API}/api/tasks/waiting`;
-      else if (subtab === 'someday')  url = `${API}/api/tasks/someday`;
-      else if (subtab === 'contexts') url = `${API}/api/tasks/contexts?context=${activeContext}`;
-
-      const [tasksRes, nowRes] = await Promise.all([
-        fetch(url),
-        fetch(`${API}/api/tasks/now`),
-      ]);
-      const tasksData = await tasksRes.json();
+      const url = subtab === 'active'  ? `${API}/api/tasks/active`
+               : subtab === 'waiting' ? `${API}/api/tasks/waiting`
+               :                        `${API}/api/tasks/someday`;
+      const [tasksRes, nowRes] = await Promise.all([fetch(url), fetch(`${API}/api/tasks/now`)]);
+      const data    = await tasksRes.json();
       const nowData = await nowRes.json();
-      const data = Array.isArray(tasksData) ? tasksData : [];
-      cacheRef.current[cacheKey] = data;
-      setTasks(data);
+      const arr = Array.isArray(data) ? data : [];
+      cacheRef.current[subtab] = arr;
+      setTasks(arr);
       setNowTaskId(nowData ? nowData.id : null);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [subtab, today, tomorrow, activeContext]);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  }, [subtab]);
 
-  useEffect(() => {
-    fetchTasks();
-    setShowAddForm(false);
-  }, [fetchTasks]);
+  useEffect(() => { fetchTasks(); setShowAddForm(false); }, [fetchTasks]);
 
-  // External refresh (e.g. task created from Inbox) — clear cache and refetch
   useEffect(() => {
     if (refreshKey === 0) return;
     cacheRef.current = {};
     fetchTasks();
   }, [refreshKey]);
+
+  const invalidateCache = () => { cacheRef.current = {}; };
 
   const updateTask = async (id, fields) => {
     try {
@@ -144,22 +109,15 @@ export default function TasksView({ refreshKey = 0 }) {
       const updated = await res.json();
       if (fields.is_now !== undefined) {
         setNowTaskId(fields.is_now ? updated.id : null);
-        setTasks((prev) => prev.map((t) => ({ ...t, is_now: t.id === updated.id ? (fields.is_now ? 1 : 0) : 0 })));
+        setTasks(prev => prev.map(t => ({ ...t, is_now: t.id === updated.id ? (fields.is_now ? 1 : 0) : 0 })));
       } else {
-        const stillBelongs = (() => {
-          if (subtab === 'inbox')    return !updated.date && updated.list_type === 'active';
-          if (subtab === 'today')    return updated.date === today;
-          if (subtab === 'tomorrow') return updated.date === tomorrow;
-          if (subtab === 'later')    return updated.date > tomorrow;
-          if (subtab === 'waiting')  return updated.list_type === 'waiting';
-          if (subtab === 'someday')  return updated.list_type === 'someday';
-          if (subtab === 'contexts') return updated.context === activeContext;
-          return true;
-        })();
+        const stillBelongs = subtab === 'active'  ? (!fields.list_type || fields.list_type === 'active')
+                           : subtab === 'waiting' ? updated.list_type === 'waiting'
+                           :                        updated.list_type === 'someday';
         if (!stillBelongs) {
-          setTasks((prev) => prev.filter((t) => t.id !== id));
+          setTasks(prev => prev.filter(t => t.id !== id));
         } else {
-          setTasks((prev) => prev.map((t) => t.id === id ? updated : t));
+          setTasks(prev => prev.map(t => t.id === id ? updated : t));
         }
       }
     } catch (err) { console.error(err); }
@@ -167,7 +125,7 @@ export default function TasksView({ refreshKey = 0 }) {
 
   const toggleTask = async (task) => {
     const newCompleted = !task.completed;
-    setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, completed: newCompleted ? 1 : 0 } : t));
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newCompleted ? 1 : 0 } : t));
     try {
       await fetch(`${API}/api/tasks/${task.id}`, {
         method: 'PUT',
@@ -186,66 +144,80 @@ export default function TasksView({ refreshKey = 0 }) {
         setConfirm(null);
         await fetch(`${API}/api/tasks/${id}`, { method: 'DELETE' });
         invalidateCache();
-        setTasks((prev) => prev.filter((t) => t.id !== id));
+        setTasks(prev => prev.filter(t => t.id !== id));
       },
     });
   };
 
-  const invalidateCache = () => { cacheRef.current = {}; };
-
-  const handleDragEnd = async ({ active, over }) => {
-    setActiveTask(null);
-    if (!over || active.id === over.id) return;
-    const oldIdx = incomplete.findIndex((t) => t.id === active.id);
-    const newIdx = incomplete.findIndex((t) => t.id === over.id);
-    const reordered = arrayMove(incomplete, oldIdx, newIdx);
-    setTasks([...reordered, ...completed]);
-    invalidateCache();
-    try {
-      await fetch(`${API}/api/tasks/reorder`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ordered_ids: reordered.map((t) => t.id) }),
-      });
-    } catch { fetchTasks(); }
-  };
-
   const addTask = async (fields) => {
-    const date = subtab === 'inbox' || subtab === 'waiting' || subtab === 'someday' || subtab === 'contexts' ? null
-      : subtab === 'today' ? today
-      : subtab === 'tomorrow' ? tomorrow
-      : fields.date || null;
-
-    const list_type = subtab === 'waiting' ? 'waiting'
-      : subtab === 'someday' ? 'someday'
-      : 'active';
-
-    const context = subtab === 'contexts' ? activeContext : fields.context;
-
+    const list_type = subtab === 'waiting' ? 'waiting' : subtab === 'someday' ? 'someday' : 'active';
+    const context   = contextFilter !== 'all' ? contextFilter : fields.context;
     const res = await fetch(`${API}/api/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...fields, date, list_type, context }),
+      body: JSON.stringify({ ...fields, list_type, context }),
     });
     if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
     const newTask = await res.json();
     invalidateCache();
-    setTasks((prev) => [...prev, newTask]);
+    setTasks(prev => [...prev, newTask]);
     setShowAddForm(false);
   };
 
-  const defaultDate = subtab === 'today' ? today : subtab === 'tomorrow' ? tomorrow : '';
-  const incomplete = tasks.filter((t) => !t.completed);
-  const completed = tasks.filter((t) => t.completed);
+  // Reorder within Unscheduled group (Active tab)
+  const handleUnscheduledReorder = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const source = tasks.filter(t => !t.completed && (!t.date || t.date === ''));
+    const oldIdx = source.findIndex(t => t.id === active.id);
+    const newIdx = source.findIndex(t => t.id === over.id);
+    const reordered = arrayMove(source, oldIdx, newIdx);
+    const map = new Map(reordered.map(t => [t.id, t]));
+    setTasks(prev => prev.map(t => map.get(t.id) || t));
+    invalidateCache();
+    fetch(`${API}/api/tasks/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ordered_ids: reordered.map(t => t.id) }),
+    }).catch(() => fetchTasks());
+  };
+
+  // Reorder for flat lists (Waiting / Someday)
+  const handleFlatReorder = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const inc  = tasks.filter(t => !t.completed);
+    const comp = tasks.filter(t => t.completed);
+    const oldIdx = inc.findIndex(t => t.id === active.id);
+    const newIdx = inc.findIndex(t => t.id === over.id);
+    const reordered = arrayMove(inc, oldIdx, newIdx);
+    setTasks([...reordered, ...comp]);
+    invalidateCache();
+    fetch(`${API}/api/tasks/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ordered_ids: reordered.map(t => t.id) }),
+    }).catch(() => fetchTasks());
+  };
+
+  // ── Derived state ──────────────────────────────────────────────────────────
+
+  const filtered = subtab === 'active' && contextFilter !== 'all'
+    ? tasks.filter(t => t.context === contextFilter)
+    : tasks;
+
+  const incomplete = filtered.filter(t => !t.completed);
+  const completed  = filtered.filter(t => t.completed);
+
+  const groups = subtab === 'active' ? {
+    overdue:      incomplete.filter(t => t.date && t.date < today),
+    today:        incomplete.filter(t => t.date === today),
+    upcoming:     incomplete.filter(t => t.date && t.date > today),
+    unscheduled:  incomplete.filter(t => !t.date || t.date === ''),
+  } : null;
 
   const emptyMessages = {
-    inbox:    'No unscheduled tasks. Tasks without a date land here.',
-    today:    'No tasks for today.',
-    tomorrow: 'No tasks for tomorrow.',
-    later:    'No upcoming tasks.',
-    waiting:  'Nothing waiting. Use this list to track items delegated or pending others.',
-    someday:  'Someday/Maybe list is empty.',
-    contexts: `No tasks for @${activeContext}.`,
+    active:  'No active tasks.',
+    waiting: 'Nothing waiting. Use this for delegated tasks.',
+    someday: 'Someday/Maybe is empty.',
   };
 
   return (
@@ -259,6 +231,8 @@ export default function TasksView({ refreshKey = 0 }) {
           onCancel={() => setConfirm(null)}
         />
       )}
+
+      {/* ── 3-tab nav ── */}
       <div className="subtab-nav">
         {SUBTABS.map(({ id, label }) => (
           <button
@@ -271,13 +245,20 @@ export default function TasksView({ refreshKey = 0 }) {
         ))}
       </div>
 
-      {subtab === 'contexts' && (
+      {/* ── Context filter (Active tab only) ── */}
+      {subtab === 'active' && (
         <div className="context-filter-row">
-          {CONTEXTS.map((c) => (
+          <button
+            className={`pill${contextFilter === 'all' ? ' pill--active pill-energy-deep' : ''}`}
+            onClick={() => setContextFilter('all')}
+          >
+            All
+          </button>
+          {CONTEXTS.map(c => (
             <button
               key={c}
-              className={`pill${activeContext === c ? ' pill--active pill-energy-deep' : ''}`}
-              onClick={() => setActiveContext(c)}
+              className={`pill${contextFilter === c ? ' pill--active pill-energy-deep' : ''}`}
+              onClick={() => setContextFilter(prev => prev === c ? 'all' : c)}
             >
               @{c}
             </button>
@@ -289,12 +270,11 @@ export default function TasksView({ refreshKey = 0 }) {
         <div className="loading"><div className="spinner" /><div>Loading…</div></div>
       ) : (
         <>
+          {/* ── Add task ── */}
           {showAddForm ? (
             <div className="task-form-wrapper" style={{ marginTop: '1rem' }}>
               <TaskForm
-                defaultDate={defaultDate}
                 defaultListType={subtab === 'waiting' ? 'waiting' : subtab === 'someday' ? 'someday' : 'active'}
-                defaultContext={subtab === 'contexts' ? activeContext : undefined}
                 projects={projects}
                 onSave={addTask}
                 onCancel={() => setShowAddForm(false)}
@@ -308,51 +288,114 @@ export default function TasksView({ refreshKey = 0 }) {
 
           {incomplete.length === 0 && completed.length === 0 && !showAddForm && (
             <div className="planner-empty" style={{ marginTop: '1.5rem' }}>
-              {emptyMessages[subtab] || 'No tasks.'}
+              {emptyMessages[subtab]}
             </div>
           )}
 
-          {incomplete.length > 0 && (
+          {/* ── Active: grouped sections ── */}
+          {subtab === 'active' && groups && (
+            <div style={{ marginTop: '1rem' }}>
+
+              {groups.overdue.length > 0 && (
+                <div className="task-group">
+                  <div className="task-group-header task-group-header--overdue">
+                    Overdue <span className="task-group-count">{groups.overdue.length}</span>
+                  </div>
+                  <div className="task-list">
+                    {groups.overdue.map(task => (
+                      <TaskCard key={task.id} task={task} nowTaskId={nowTaskId}
+                        showDate onToggle={() => toggleTask(task)}
+                        onUpdate={updateTask} onDelete={() => deleteTask(task.id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {groups.today.length > 0 && (
+                <div className="task-group">
+                  <div className="task-group-header task-group-header--today">
+                    Today <span className="task-group-count">{groups.today.length}</span>
+                  </div>
+                  <div className="task-list">
+                    {groups.today.map(task => (
+                      <TaskCard key={task.id} task={task} nowTaskId={nowTaskId}
+                        showDate={false} onToggle={() => toggleTask(task)}
+                        onUpdate={updateTask} onDelete={() => deleteTask(task.id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {groups.upcoming.length > 0 && (
+                <div className="task-group">
+                  <div className="task-group-header">
+                    Upcoming <span className="task-group-count">{groups.upcoming.length}</span>
+                  </div>
+                  <div className="task-list">
+                    {groups.upcoming.map(task => (
+                      <TaskCard key={task.id} task={task} nowTaskId={nowTaskId}
+                        showDate onToggle={() => toggleTask(task)}
+                        onUpdate={updateTask} onDelete={() => deleteTask(task.id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {groups.unscheduled.length > 0 && (
+                <div className="task-group">
+                  <div className="task-group-header">
+                    Unscheduled <span className="task-group-count">{groups.unscheduled.length}</span>
+                  </div>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    modifiers={[restrictToVerticalAxis]}
+                    onDragEnd={handleUnscheduledReorder}
+                  >
+                    <SortableContext items={groups.unscheduled.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                      <div className="task-list">
+                        {groups.unscheduled.map(task => (
+                          <SortableTaskCard key={task.id} task={task} nowTaskId={nowTaskId}
+                            showDate={false} onToggle={() => toggleTask(task)}
+                            onUpdate={updateTask} onDelete={() => deleteTask(task.id)} />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Waiting / Someday: flat sortable ── */}
+          {subtab !== 'active' && incomplete.length > 0 && (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
               modifiers={[restrictToVerticalAxis]}
-              onDragEnd={handleDragEnd}
+              onDragEnd={handleFlatReorder}
             >
-              <SortableContext items={incomplete.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={incomplete.map(t => t.id)} strategy={verticalListSortingStrategy}>
                 <div className="task-list" style={{ marginTop: '1rem' }}>
-                  {incomplete.map((task) => (
-                    <SortableTaskCard
-                      key={task.id}
-                      task={task}
-                      nowTaskId={nowTaskId}
-                      showDate={subtab === 'later' || subtab === 'contexts'}
-                      onToggle={() => toggleTask(task)}
-                      onUpdate={updateTask}
-                      onDelete={() => deleteTask(task.id)}
-                    />
+                  {incomplete.map(task => (
+                    <SortableTaskCard key={task.id} task={task} nowTaskId={nowTaskId}
+                      showDate={false} onToggle={() => toggleTask(task)}
+                      onUpdate={updateTask} onDelete={() => deleteTask(task.id)} />
                   ))}
                 </div>
               </SortableContext>
             </DndContext>
           )}
 
+          {/* ── Completed ── */}
           {completed.length > 0 && (
             <details className="completed-section">
-              <summary className="completed-summary">
-                Completed ({completed.length})
-              </summary>
+              <summary className="completed-summary">Completed ({completed.length})</summary>
               <div className="task-list">
-                {completed.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    nowTaskId={nowTaskId}
-                    showDate={subtab === 'later' || subtab === 'contexts'}
-                    onToggle={() => toggleTask(task)}
-                    onUpdate={updateTask}
-                    onDelete={() => deleteTask(task.id)}
-                  />
+                {completed.map(task => (
+                  <TaskCard key={task.id} task={task} nowTaskId={nowTaskId}
+                    showDate={subtab === 'active'} onToggle={() => toggleTask(task)}
+                    onUpdate={updateTask} onDelete={() => deleteTask(task.id)} />
                 ))}
               </div>
             </details>

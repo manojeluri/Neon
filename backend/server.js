@@ -7,6 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const {
   getTasksForDate, getInboxTasks, getTasksAfterDate, getNowTask,
+  getAllActiveTasks,
   getWaitingTasks, getSomedayTasks, getTasksByContext, getAllContexts, getProjectTasks,
   createTask, updateTask, deleteTask,
   getInboxItems, getInboxCount, createInboxItem, deleteInboxItem,
@@ -193,6 +194,11 @@ app.delete('/api/goals/:id', async (req, res) => {
 });
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
+
+app.get('/api/tasks/active', async (req, res) => {
+  try { res.json(await getAllActiveTasks()); }
+  catch (err) { res.status(500).json({ error: err?.message || String(err) }); }
+});
 
 app.get('/api/tasks/inbox', async (req, res) => {
   try { res.json(await getInboxTasks()); }

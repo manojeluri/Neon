@@ -193,6 +193,20 @@ async function getTasksByContext(context) {
   );
 }
 
+async function getAllActiveTasks() {
+  return all(
+    `SELECT t.*, p.title as project_title FROM tasks t
+     LEFT JOIN projects p ON p.id = t.project_id
+     WHERE t.list_type = 'active'
+     ORDER BY
+       t.completed ASC,
+       CASE WHEN t.date IS NULL OR t.date = '' THEN 1 ELSE 0 END ASC,
+       t.date ASC,
+       COALESCE(t.position, 999999) ASC,
+       t.id ASC`
+  );
+}
+
 async function getAllContexts() {
   return all(
     `SELECT context, COUNT(*) as count FROM tasks
@@ -487,6 +501,7 @@ async function setSettingValue(key, value) {
 module.exports = {
   ready,
   getTasksForDate, getInboxTasks, getTasksAfterDate, getNowTask,
+  getAllActiveTasks,
   getWaitingTasks, getSomedayTasks, getTasksByContext, getAllContexts, getProjectTasks,
   createTask, updateTask, deleteTask,
   getInboxItems, getInboxCount, createInboxItem, deleteInboxItem,
