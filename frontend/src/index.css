@@ -872,20 +872,18 @@ body {
 .drag-handle:active { cursor: grabbing; }
 .task-card:hover .drag-handle { color: rgba(255,140,60,0.60); }
 
-.task-card-drag-overlay .task-card {
+.sortable-item--dragging .task-card {
   cursor: grabbing;
-  background: rgba(30, 12, 0, 0.92);
-  border-color: rgba(255,110,0,0.65);
+  background: rgba(30, 12, 0, 0.97);
+  border-color: rgba(255, 110, 0, 0.55);
   box-shadow:
-    0 0 0 1px rgba(255,110,0,0.40),
-    0 20px 60px rgba(0,0,0,0.75),
-    0 0 40px rgba(255,110,0,0.15);
-  transform: scale(1.02);
-  transition: none;
+    0 0 0 1px rgba(255, 110, 0, 0.35),
+    0 16px 48px rgba(0, 0, 0, 0.7),
+    0 0 32px rgba(255, 110, 0, 0.12);
 }
-.task-card-drag-overlay {
-  border-radius: var(--r-lg);
-  pointer-events: none;
+.sortable-item--dragging .drag-handle {
+  cursor: grabbing;
+  color: rgba(255, 140, 60, 0.9);
 }
 .task-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .task-card-title { font-size: 0.88rem; font-weight: 500; color: var(--t1); line-height: 1.4; }

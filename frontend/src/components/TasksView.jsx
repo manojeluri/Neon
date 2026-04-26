@@ -4,7 +4,7 @@ import ConfirmDialog from './ConfirmDialog.jsx';
 import TaskCard from './TaskCard.jsx';
 import TaskForm from './TaskForm.jsx';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay,
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import {
@@ -14,14 +14,17 @@ import { CSS } from '@dnd-kit/utilities';
 
 function SortableTaskCard({ task, ...props }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+  // Zero out x so the item never drifts horizontally — vertical movement only
+  const verticalTransform = transform ? { ...transform, x: 0 } : null;
   return (
     <div
       ref={setNodeRef}
+      className={isDragging ? 'sortable-item--dragging' : undefined}
       style={{
-        transform: CSS.Transform.toString(transform),
-        transition: transition || 'transform 220ms cubic-bezier(0.25, 1, 0.5, 1)',
-        opacity: isDragging ? 0 : 1,
+        transform: CSS.Transform.toString(verticalTransform),
+        transition: isDragging ? undefined : (transition || 'transform 220ms cubic-bezier(0.25, 1, 0.5, 1)'),
         position: 'relative',
+        zIndex: isDragging ? 100 : undefined,
       }}
     >
       <TaskCard task={task} {...props} dragListeners={listeners} dragAttributes={attributes} />
@@ -64,7 +67,6 @@ export default function TasksView({ refreshKey = 0 }) {
   const [activeContext, setActiveContext] = useState('anywhere');
   const [projects, setProjects] = useState([]);
   const [confirm, setConfirm] = useState(null);
-  const [activeTask, setActiveTask] = useState(null);
   const cacheRef = useRef({});
 
   const sensors = useSensors(
@@ -191,10 +193,6 @@ export default function TasksView({ refreshKey = 0 }) {
 
   const invalidateCache = () => { cacheRef.current = {}; };
 
-  const handleDragStart = ({ active }) => {
-    setActiveTask(incomplete.find((t) => t.id === active.id) || null);
-  };
-
   const handleDragEnd = async ({ active, over }) => {
     setActiveTask(null);
     if (!over || active.id === over.id) return;
@@ -319,7 +317,6 @@ export default function TasksView({ refreshKey = 0 }) {
               sensors={sensors}
               collisionDetection={closestCenter}
               modifiers={[restrictToVerticalAxis]}
-              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               <SortableContext items={incomplete.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -337,20 +334,6 @@ export default function TasksView({ refreshKey = 0 }) {
                   ))}
                 </div>
               </SortableContext>
-              <DragOverlay dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
-                {activeTask && (
-                  <div className="task-card-drag-overlay">
-                    <TaskCard
-                      task={activeTask}
-                      nowTaskId={nowTaskId}
-                      showDate={subtab === 'later' || subtab === 'contexts'}
-                      onToggle={() => {}}
-                      onUpdate={() => {}}
-                      onDelete={() => {}}
-                    />
-                  </div>
-                )}
-              </DragOverlay>
             </DndContext>
           )}
 
