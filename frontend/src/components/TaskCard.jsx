@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Star, Pencil, Trash2 } from 'lucide-react';
+import { Play, Star, Pencil, Trash2, CalendarPlus } from 'lucide-react';
 import TaskForm from './TaskForm.jsx';
 
 const PRIORITY_LABELS = { must: 'Must', could: 'Could' }; // 'should' is default — no badge needed
@@ -17,8 +17,14 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId, showDate }) {
   const [editing, setEditing] = useState(false);
+  const today = getTodayStr();
 
   if (editing) {
     return (
@@ -92,6 +98,15 @@ export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId
         >
           <Star size={11} />
         </button>
+        {task.date !== today && (
+          <button
+            className="btn-icon"
+            onClick={() => onUpdate(task.id, { date: today, list_type: 'active' })}
+            title="Schedule for today"
+          >
+            <CalendarPlus size={11} />
+          </button>
+        )}
         <button className="btn-icon" onClick={() => setEditing(true)} title="Edit">
           <Pencil size={11} />
         </button>
