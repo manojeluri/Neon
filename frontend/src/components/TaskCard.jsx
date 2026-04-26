@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Star, Pencil, Trash2, CalendarPlus } from 'lucide-react';
+import { Star, Pencil, Trash2, CalendarPlus } from 'lucide-react';
 import TaskForm from './TaskForm.jsx';
 
 const PRIORITY_LABELS = { must: 'Must', could: 'Could' }; // 'should' is default — no badge needed
@@ -84,13 +84,6 @@ export default function TaskCard({ task, onToggle, onUpdate, onDelete, nowTaskId
       </div>
 
       <div className="task-card-actions">
-        <button
-          className={`btn-icon${isNow ? ' btn-icon--now-active' : ''}`}
-          onClick={() => onUpdate(task.id, { is_now: isNow ? 0 : 1 })}
-          title={isNow ? 'Clear focus' : 'Focus now'}
-        >
-          <Play size={13} />
-        </button>
         <button
           className={`btn-icon${task.is_top3 ? ' btn-icon--top3-active' : ''}`}
           onClick={() => onUpdate(task.id, { is_top3: task.is_top3 ? 0 : 1 })}
